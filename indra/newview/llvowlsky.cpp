@@ -207,7 +207,7 @@ BOOL LLVOWLSky::updateGeometry(LLDrawable * drawable)
 
         mStripsVerts.resize(strips_segments, NULL);
 
-#if RELEASE_SHOW_DEBUG
+#ifdef RELEASE_SHOW_DEBUG
         LL_INFOS() << "WL Skydome strips in " << strips_segments << " batches." << LL_ENDL;
 
         LLTimer timer;
@@ -238,7 +238,7 @@ BOOL LLVOWLSky::updateGeometry(LLDrawable * drawable)
             llassert(num_indices_this_seg * sizeof(U16) <= max_buffer_bytes);
 
             bool allocated = segment->allocateBuffer(num_verts_this_seg, num_indices_this_seg);
-#if RELEASE_SHOW_WARNS
+#ifdef RELEASE_SHOW_WARNS
             if( !allocated )
             {
                 LL_WARNS() << "Failed to allocate Vertex Buffer on update to "
@@ -254,7 +254,7 @@ BOOL LLVOWLSky::updateGeometry(LLDrawable * drawable)
                 && segment->getTexCoord0Strider(texCoords)
                 && segment->getIndexStrider(indices);
 
-#if RELEASE_SHOW_DEBUG
+#ifdef RELEASE_SHOW_DEBUG
             if(!success)
             {
                 LL_ERRS() << "Failed updating WindLight sky geometry." << LL_ENDL;
@@ -270,7 +270,7 @@ BOOL LLVOWLSky::updateGeometry(LLDrawable * drawable)
             segment->unmapBuffer();
         }
 
-#if RELEASE_SHOW_DEBUG
+#ifdef RELEASE_SHOW_DEBUG
         LL_INFOS() << "completed in " << llformat("%.2f", timer.getElapsedTimeF32().value()) << "seconds" << LL_ENDL;
 #endif
     }
