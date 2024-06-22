@@ -215,7 +215,7 @@ void LLHeroProbeManager::update()
                 mFaceUpdateList[i] = ceilf(cube_facing * gPipeline.RenderHeroProbeConservativeUpdateMultiplier);
             }
 
-            
+
             mProbes[0]->mOrigin = probe_pos;
         }
         else
@@ -336,7 +336,9 @@ void LLHeroProbeManager::updateProbeFace(LLReflectionMap* probe, U32 face, bool 
 
             // horizontal
             gGaussianProgram.uniform2f(direction, 1.f, 0.f);
-            gGL.getTexUnit(diffuseChannel)->bind(screen_rt);
+            if(diffuseChannel >= 0) {
+                gGL.getTexUnit(diffuseChannel)->bind(screen_rt);
+            }
             mRenderTarget.bindTarget();
             gPipeline.mScreenTriangleVB->setBuffer();
             gPipeline.mScreenTriangleVB->drawArrays(LLRender::TRIANGLES, 0, 3);
@@ -344,7 +346,9 @@ void LLHeroProbeManager::updateProbeFace(LLReflectionMap* probe, U32 face, bool 
 
             // vertical
             gGaussianProgram.uniform2f(direction, 0.f, 1.f);
-            gGL.getTexUnit(diffuseChannel)->bind(&mRenderTarget);
+            if(diffuseChannel >= 0) {
+                gGL.getTexUnit(diffuseChannel)->bind(&mRenderTarget);
+            }
             screen_rt->bindTarget();
             gPipeline.mScreenTriangleVB->setBuffer();
             gPipeline.mScreenTriangleVB->drawArrays(LLRender::TRIANGLES, 0, 3);
@@ -364,14 +368,20 @@ void LLHeroProbeManager::updateProbeFace(LLReflectionMap* probe, U32 face, bool 
             mMipChain[i].bindTarget();
             if (i == 0)
             {
-                gGL.getTexUnit(diffuseChannel)->bind(screen_rt);
+                if(diffuseChannel >= 0) {
+                    gGL.getTexUnit(diffuseChannel)->bind(screen_rt);
+                }
             }
             else
             {
-                gGL.getTexUnit(diffuseChannel)->bind(&(mMipChain[i - 1]));
+                if(diffuseChannel >= 0) {
+                    gGL.getTexUnit(diffuseChannel)->bind(&(mMipChain[i - 1]));
+                }
             }
 
-            gGL.getTexUnit(depthChannel)->bind(depth_rt, true);
+            if(depthChannel >= 0) {
+                gGL.getTexUnit(depthChannel)->bind(depth_rt, true);
+            }
 
             gReflectionMipProgram.uniform1f(resScale, 1.f / (mProbeResolution * 2));
             gReflectionMipProgram.uniform1f(znear, probe->getNearClip());
@@ -400,7 +410,9 @@ void LLHeroProbeManager::updateProbeFace(LLReflectionMap* probe, U32 face, bool 
         gGL.matrixMode(gGL.MM_MODELVIEW);
         gGL.popMatrix();
 
-        gGL.getTexUnit(diffuseChannel)->unbind(LLTexUnit::TT_TEXTURE);
+        if(diffuseChannel >= 0) {
+            gGL.getTexUnit(diffuseChannel)->unbind(LLTexUnit::TT_TEXTURE);
+        }
         gReflectionMipProgram.unbind();
     }
 }

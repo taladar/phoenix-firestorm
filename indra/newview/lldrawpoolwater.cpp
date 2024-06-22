@@ -129,8 +129,12 @@ void LLDrawPoolWater::beginPostDeferredPass(S32 pass)
         S32 diff_map = gCopyDepthProgram.getTextureChannel(LLShaderMgr::DIFFUSE_MAP);
         S32 depth_map = gCopyDepthProgram.getTextureChannel(LLShaderMgr::DEFERRED_DEPTH);
 
-        gGL.getTexUnit(diff_map)->bind(&src);
-        gGL.getTexUnit(depth_map)->bind(&depth_src, true);
+        if(diff_map >= 0) {
+            gGL.getTexUnit(diff_map)->bind(&src);
+        }
+        if(depth_map >= 0) {
+            gGL.getTexUnit(depth_map)->bind(&depth_src, true);
+        }
 
         gPipeline.mScreenTriangleVB->setBuffer();
         gPipeline.mScreenTriangleVB->drawArrays(LLRender::TRIANGLES, 0, 3);
@@ -223,23 +227,35 @@ void LLDrawPoolWater::renderPostDeferred(S32 pass)
 
         F32 blend_factor = pwater->getBlendFactor();
 
-        gGL.getTexUnit(bumpTex)->unbind(LLTexUnit::TT_TEXTURE);
-        gGL.getTexUnit(bumpTex2)->unbind(LLTexUnit::TT_TEXTURE);
+        if(bumpTex >= 0) {
+            gGL.getTexUnit(bumpTex)->unbind(LLTexUnit::TT_TEXTURE);
+        }
+        if(bumpTex2 >= 0) {
+            gGL.getTexUnit(bumpTex2)->unbind(LLTexUnit::TT_TEXTURE);
+        }
 
         if (tex_a && (!tex_b || (tex_a == tex_b)))
         {
-            gGL.getTexUnit(bumpTex)->bind(tex_a);
+            if(bumpTex >= 0) {
+                gGL.getTexUnit(bumpTex)->bind(tex_a);
+            }
             blend_factor = 0; // only one tex provided, no blending
         }
         else if (tex_b && !tex_a)
         {
-            gGL.getTexUnit(bumpTex)->bind(tex_b);
+            if(bumpTex >= 0) {
+                gGL.getTexUnit(bumpTex)->bind(tex_b);
+            }
             blend_factor = 0; // only one tex provided, no blending
         }
         else if (tex_b != tex_a)
         {
-            gGL.getTexUnit(bumpTex)->bind(tex_a);
-            gGL.getTexUnit(bumpTex2)->bind(tex_b);
+            if(bumpTex >= 0) {
+                gGL.getTexUnit(bumpTex)->bind(tex_a);
+            }
+            if(bumpTex2 >= 0) {
+                gGL.getTexUnit(bumpTex2)->bind(tex_b);
+            }
         }
 
         // bind reflection texture from RenderTarget
@@ -322,7 +338,9 @@ void LLDrawPoolWater::renderPostDeferred(S32 pass)
             water = static_cast<LLVOWater*>(face->getViewerObject());
             if (!water) continue;
 
-            gGL.getTexUnit(diffTex)->bind(face->getTexture());
+            if(diffTex >= 0) {
+                gGL.getTexUnit(diffTex)->bind(face->getTexture());
+            }
 
             if ((bool)edge == (bool)water->getIsEdgePatch())
             {
@@ -346,8 +364,12 @@ void LLDrawPoolWater::renderPostDeferred(S32 pass)
         // clean up
         gPipeline.unbindDeferredShader(*shader);
 
-        gGL.getTexUnit(bumpTex)->unbind(LLTexUnit::TT_TEXTURE);
-        gGL.getTexUnit(bumpTex2)->unbind(LLTexUnit::TT_TEXTURE);
+        if(bumpTex >= 0) {
+            gGL.getTexUnit(bumpTex)->unbind(LLTexUnit::TT_TEXTURE);
+        }
+        if(bumpTex2 >= 0) {
+            gGL.getTexUnit(bumpTex2)->unbind(LLTexUnit::TT_TEXTURE);
+        }
     }
 
     gGL.getTexUnit(0)->activate();
