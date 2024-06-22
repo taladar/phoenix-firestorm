@@ -2081,13 +2081,13 @@ LLInventoryPanel* LLInventoryPanel::getActiveInventoryPanel(BOOL auto_open)
     LLSidepanelInventory *inventory_panel = LLFloaterSidePanelContainer::getPanel<LLSidepanelInventory>("inventory");
 
     // Iterate through the inventory floaters and return whichever is on top.
-    LLFloaterReg::const_instance_list_t& inst_list = LLFloaterReg::getFloaterList("inventory");
+    LLFloaterReg::const_instance_list_t inst_list = LLFloaterReg::getFloaterList("inventory");
     // <FS:Ansariel> Fix for sharing inventory when multiple inventory floaters are open:
     //               For the secondary floaters, we have registered those as
     //               "secondary_inventory" in LLFloaterReg, so we have to add those
     //               instances to the instance list!
     //for (LLFloaterReg::const_instance_list_t::const_iterator iter = inst_list.begin(); iter != inst_list.end(); ++iter)
-    LLFloaterReg::const_instance_list_t& inst_list_secondary = LLFloaterReg::getFloaterList("secondary_inventory");
+    LLFloaterReg::const_instance_list_t inst_list_secondary = LLFloaterReg::getFloaterList("secondary_inventory");
     LLFloaterReg::instance_list_t combined_list;
     combined_list.insert(combined_list.end(), inst_list.begin(), inst_list.end());
     combined_list.insert(combined_list.end(), inst_list_secondary.begin(), inst_list_secondary.end());
@@ -2115,7 +2115,7 @@ LLInventoryPanel* LLInventoryPanel::getActiveInventoryPanel(BOOL auto_open)
     }
 
     // <FS:Ansariel> Show folder in new window option
-    LLFloaterReg::const_instance_list_t& inst_list_partial = LLFloaterReg::getFloaterList("fs_partial_inventory");
+    LLFloaterReg::const_instance_list_t inst_list_partial = LLFloaterReg::getFloaterList("fs_partial_inventory");
     for (const auto inst : inst_list_partial)
     {
         if (inst->getVisible())
@@ -2276,7 +2276,7 @@ void LLInventoryPanel::openInventoryPanelAndSetSelection(bool auto_open, const L
 
 void LLInventoryPanel::setSFViewAndOpenFolder(const LLInventoryPanel* panel, const LLUUID& folder_id)
 {
-    LLFloaterReg::const_instance_list_t& inst_list = LLFloaterReg::getFloaterList("inventory");
+    LLFloaterReg::const_instance_list_t inst_list = LLFloaterReg::getFloaterList("inventory");
     for (LLFloaterReg::const_instance_list_t::const_iterator iter = inst_list.begin(); iter != inst_list.end(); ++iter)
     {
         LLFloaterSidePanelContainer* inventory_floater = dynamic_cast<LLFloaterSidePanelContainer*>(*iter);

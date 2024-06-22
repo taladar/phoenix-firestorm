@@ -374,7 +374,7 @@ void RlvHandler::getAttachmentResourcesCoro(const std::string& strUrl)
             for (LLSD::array_const_iterator itAttachObj = sdAttachObjects.beginArray(), endAttachObj = sdAttachObjects.endArray(); itAttachObj != endAttachObj; ++itAttachObj)
             {
                 const LLUUID idObj = itAttachObj->get("id").asUUID();
-                const std::string& strObjName = itAttachObj->get("name").asStringRef();
+                const std::string strObjName = itAttachObj->get("name").asStringRef();
 
                 // If it's an attachment, it should be a temporary one (NOTE: we might catch it before it's had a chance to attach)
                 const LLViewerObject* pObj = gObjectList.findObject(idObj);

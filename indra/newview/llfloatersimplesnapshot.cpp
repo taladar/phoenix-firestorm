@@ -448,7 +448,7 @@ void LLFloaterSimpleSnapshot::uploadImageUploadFile(const std::string &temp_file
 void LLFloaterSimpleSnapshot::update()
 {
     // initializes snapshots when needed
-    LLFloaterReg::const_instance_list_t& inst_list = LLFloaterReg::getFloaterList("simple_snapshot");
+    LLFloaterReg::const_instance_list_t inst_list = LLFloaterReg::getFloaterList("simple_snapshot");
     for (LLFloaterReg::const_instance_list_t::const_iterator iter = inst_list.begin();
         iter != inst_list.end(); ++iter)
     {

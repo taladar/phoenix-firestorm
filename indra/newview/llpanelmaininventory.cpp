@@ -588,7 +588,7 @@ LLFloaterSidePanelContainer* LLPanelMainInventory::newWindow()
 //static
 void LLPanelMainInventory::newFolderWindow(LLUUID folder_id, LLUUID item_to_select)
 {
-    LLFloaterReg::const_instance_list_t& inst_list = LLFloaterReg::getFloaterList("inventory");
+    LLFloaterReg::const_instance_list_t inst_list = LLFloaterReg::getFloaterList("inventory");
     for (LLFloaterReg::const_instance_list_t::const_iterator iter = inst_list.begin(); iter != inst_list.end();)
     {
         LLFloaterSidePanelContainer* inventory_container = dynamic_cast<LLFloaterSidePanelContainer*>(*iter++);
@@ -1169,7 +1169,7 @@ void LLPanelMainInventory::updateFilterDropdown(const LLInventoryFilter* filter)
  {
     LLPanelMainInventory* active_view = NULL;
 
-    LLFloaterReg::const_instance_list_t& inst_list = LLFloaterReg::getFloaterList("inventory");
+    LLFloaterReg::const_instance_list_t inst_list = LLFloaterReg::getFloaterList("inventory");
     for (LLFloaterReg::const_instance_list_t::const_iterator iter = inst_list.begin(); iter != inst_list.end(); ++iter)
     {
         LLPanelMainInventory* iv = dynamic_cast<LLPanelMainInventory*>(*iter);
@@ -2433,7 +2433,7 @@ void LLPanelMainInventory::onCustomAction(const LLSD& userdata)
 
     if (command_name == "close_inv_windows")
     {
-        LLFloaterReg::const_instance_list_t& inst_list = LLFloaterReg::getFloaterList("inventory");
+        LLFloaterReg::const_instance_list_t inst_list = LLFloaterReg::getFloaterList("inventory");
         for (LLFloaterReg::const_instance_list_t::const_iterator iter = inst_list.begin(); iter != inst_list.end();)
         {
             LLFloaterSidePanelContainer* iv = dynamic_cast<LLFloaterSidePanelContainer*>(*iter++);

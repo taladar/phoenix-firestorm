@@ -1002,7 +1002,7 @@ LLInventoryItem* LLFloaterProperties::findItem() const
 //static
 void LLFloaterProperties::dirtyAll()
 {
-    LLFloaterReg::const_instance_list_t& inst_list = LLFloaterReg::getFloaterList("properties");
+    LLFloaterReg::const_instance_list_t inst_list = LLFloaterReg::getFloaterList("properties");
     for (LLFloaterReg::const_instance_list_t::const_iterator iter = inst_list.begin();
          iter != inst_list.end(); ++iter)
     {

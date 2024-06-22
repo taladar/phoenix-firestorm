@@ -1217,7 +1217,7 @@ FSFloaterIM* FSFloaterIM::show(const LLUUID& session_id)
     if (!isChatMultiTab())
     {
         //hide all
-        LLFloaterReg::const_instance_list_t& inst_list = LLFloaterReg::getFloaterList("fs_impanel");
+        LLFloaterReg::const_instance_list_t inst_list = LLFloaterReg::getFloaterList("fs_impanel");
         for (LLFloaterReg::const_instance_list_t::const_iterator iter = inst_list.begin();
              iter != inst_list.end(); ++iter)
         {
@@ -1787,7 +1787,7 @@ void FSFloaterIM::updateChatHistoryStyle()
 void FSFloaterIM::processChatHistoryStyleUpdate(const LLSD& newvalue)
 {
     LLFontGL* font = LLViewerChat::getChatFont();
-    LLFloaterReg::const_instance_list_t& inst_list = LLFloaterReg::getFloaterList("fs_impanel");
+    LLFloaterReg::const_instance_list_t inst_list = LLFloaterReg::getFloaterList("fs_impanel");
     for (LLFloaterReg::const_instance_list_t::const_iterator iter = inst_list.begin();
          iter != inst_list.end(); ++iter)
     {
@@ -2252,7 +2252,7 @@ BOOL FSFloaterIM::enableViewerVersionCallback(const LLSD& notification,const LLS
 //static
 void FSFloaterIM::clearAllOpenHistories()
 {
-    LLFloaterReg::const_instance_list_t& inst_list = LLFloaterReg::getFloaterList("fs_impanel");
+    LLFloaterReg::const_instance_list_t inst_list = LLFloaterReg::getFloaterList("fs_impanel");
     for (LLFloaterReg::const_instance_list_t::const_iterator iter = inst_list.begin();
          iter != inst_list.end(); ++iter)
     {

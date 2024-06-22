@@ -2820,7 +2820,8 @@ void LLAgent::endAnimationUpdateUI()
                 skip_list.insert(LLFloaterReg::findInstance("stats"));
             }
             // <FS:LO> //FIRE-6385: Show all script dialogs still after leaving mouselook
-            for (LLFloater *tmp : LLFloaterReg::getFloaterList("script_floater"))
+            LLFloaterReg::const_instance_list_t inst_list = LLFloaterReg::getFloaterList("script_floater");
+            for (LLFloater *tmp : inst_list)
             {
                 skip_list.insert(tmp);
             }
@@ -3005,7 +3006,8 @@ void LLAgent::endAnimationUpdateUI()
             skip_list.insert(LLFloaterReg::findInstance("stats"));
         }
         // <FS:LO> //FIRE-6385: Show all script dialogs still when entering mouselook
-        for (LLFloater* tmp : LLFloaterReg::getFloaterList("script_floater"))
+        LLFloaterReg::const_instance_list_t inst_list = LLFloaterReg::getFloaterList("script_floater");
+        for (LLFloater* tmp : inst_list)
         {
             skip_list.insert(tmp);
         }

@@ -490,7 +490,7 @@ void RlvUtil::filterLocation(std::string& strUTF8Text)
 {
     // Filter any mention of the surrounding region names
     LLWorld::region_list_t regions = LLWorld::getInstance()->getRegionList();
-    const std::string& strHiddenRegion = RlvStrings::getString(RlvStringKeys::Hidden::Region);
+    const std::string strHiddenRegion = RlvStrings::getString(RlvStringKeys::Hidden::Region);
     for (LLWorld::region_list_t::const_iterator itRegion = regions.begin(); itRegion != regions.end(); ++itRegion)
         boost::replace_all_regex(strUTF8Text, boost::regex("\\b" + escape_for_regex((*itRegion)->getName()) + "\\b", boost::regex::icase), strHiddenRegion);
 
