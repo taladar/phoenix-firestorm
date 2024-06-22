@@ -83,11 +83,15 @@ LL_COMMON_API std::ostream& operator<<(std::ostream& s, const LLContextStatus& c
 #ifdef LL_RELEASE_FOR_DOWNLOAD
 #define dumpStack(tag)
 #else
+#ifdef LL_WINDOWS
 #define dumpStack(tag)                          \
     LL_DEBUGS(tag) << "STACK:\n"                \
                    << "====================\n"  \
                    << LLCallStack()             \
                    << "===================="    \
                    << LL_ENDL;
+#else
+#define dumpStack(tag)
+#endif
 #endif
 // </FS:Ansariel>
