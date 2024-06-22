@@ -545,7 +545,7 @@ BOOL LLTemplateMessageReader::decodeData(const U8* buffer, const LLHost& sender 
 	#ifdef TRACY_ENABLE
 	static char msgstr[36];
 	#endif
-    // </FS:Beq>    
+    // </FS:Beq>
 
     // The offset tells us how may bytes to skip after the end of the
     // message name.
@@ -605,11 +605,11 @@ BOOL LLTemplateMessageReader::decodeData(const U8* buffer, const LLHost& sender 
 
         LLMsgBlkData* cur_data_block = NULL;
         // <FS:Beq> Tracy Message processing
-		LL_DEBUGS("LLMessage") << "Processing " << mbci->mName << " with " << repeat_number << " repetitions" << LL_ENDL;
+		LL_DEBUGS("LLMessage") << "Processing " << mbci->mName << " with " << (U32)repeat_number << " repetitions" << LL_ENDL;
 		#ifdef TRACY_ENABLE
 		strncpy(msgstr, mbci->mName, 35);
 		LL_PROFILE_ZONE_TEXT(msgstr, 35);
-		#endif        
+		#endif
         // </FS:Beq>
 
         // now loop through the block
