@@ -2016,7 +2016,10 @@ BOOL LLVOVolume::genBBoxes(BOOL force_global, BOOL should_update_octree_bounds)
     }
     else
     {
-        LL_DEBUGS("RiggedBox") << "genBBoxes failed to find any valid face boxes" << LL_ENDL;
+        if(rebuild) {
+            // any_valid_boxes is only ever set in an if(rebuild) so we do not want to print this message every time we were not even trying any of those code paths
+            LL_DEBUGS("RiggedBox") << "genBBoxes failed to find any valid face boxes even though we were trying to rebuild" << LL_ENDL;
+        }
     }
 
     return res;
