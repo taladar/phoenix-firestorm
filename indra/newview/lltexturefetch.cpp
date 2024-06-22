@@ -3088,7 +3088,7 @@ bool LLTextureFetch::getRequestFinished(const LLUUID& id, S32& discard_level,
             skipped_states_time = worker->mSkippedStatesTime;
             worker->mStateTimer.reset();
             res = true;
-            LL_DEBUGS(LOG_TXT) << id << ": Request Finished. State: " << worker->mState << " Discard: " << discard_level << LL_ENDL;
+            LL_DEBUGS(LOG_TXT) << id << ": Request Finished. State: " << e_state_name[worker->mState] << "(" << worker->mState << ") Discard: " << discard_level << LL_ENDL;
             worker->unlockWorkMutex();                                  // -Mw
 
             sample(sTexDecodeLatency, decode_time);
