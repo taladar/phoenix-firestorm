@@ -228,6 +228,7 @@ LLVOVolume::LLVOVolume(const LLUUID &id, const LLPCode pcode, LLViewerRegion *re
       mVolumeSurfaceArea(-1.f)
     // NaCl End
 {
+    LL_DEBUGS() << "Creating LLVOVolume for id " << id << " and pcode " << pcode << LL_ENDL;
     mTexAnimMode = 0;
     mRelativeXform.setIdentity();
     mRelativeXformInvTrans.setIdentity();
@@ -262,6 +263,7 @@ LLVOVolume::LLVOVolume(const LLUUID &id, const LLPCode pcode, LLViewerRegion *re
 
 LLVOVolume::~LLVOVolume()
 {
+    LL_DEBUGS() << "Destroying LLVOVolume for id " << mID << LL_ENDL;
     LL_PROFILE_ZONE_SCOPED;
     delete mTextureAnimp;
     mTextureAnimp = NULL;
@@ -1310,6 +1312,7 @@ void LLVOVolume::updateSculptTexture()
         LLUUID id =  sculpt_params->getSculptTexture();
         if (id.notNull())
         {
+            LL_DEBUGS() << "LLViewerObject::updateSculptTexture calling getFetchedTexture for id " << id << " on object " << mID << LL_ENDL;
             mSculptTexture = LLViewerTextureManager::getFetchedTexture(id, FTT_DEFAULT, TRUE, LLGLTexture::BOOST_NONE, LLViewerTexture::LOD_TEXTURE);
         }
 
@@ -2580,11 +2583,11 @@ void LLVOVolume::setTEMaterialParamsCallbackTE(const LLUUID& objectID, const LLM
 S32 LLVOVolume::setTEMaterialID(const U8 te, const LLMaterialID& pMaterialID)
 {
     S32 res = LLViewerObject::setTEMaterialID(te, pMaterialID);
-    LL_DEBUGS("MaterialTEs") << "te "<< (S32)te << " materialid " << pMaterialID.asString() << " res " << res
-                                << ( LLSelectMgr::getInstance()->getSelection()->contains(const_cast<LLVOVolume*>(this), te) ? " selected" : " not selected" )
-                                << LL_ENDL;
+    //LL_DEBUGS("MaterialTEs") << "te "<< (S32)te << " materialid " << pMaterialID.asString() << " res " << res
+    //                            << ( LLSelectMgr::getInstance()->getSelection()->contains(const_cast<LLVOVolume*>(this), te) ? " selected" : " not selected" )
+    //                            << LL_ENDL;
 
-    LL_DEBUGS("MaterialTEs") << " " << pMaterialID.asString() << LL_ENDL;
+    //LL_DEBUGS("MaterialTEs") << " " << pMaterialID.asString() << LL_ENDL;
     if (res)
     {
         LLMaterialMgr::instance().getTE(getRegion()->getRegionID(), pMaterialID, te, boost::bind(&LLVOVolume::setTEMaterialParamsCallbackTE, getID(), _1, _2, _3));

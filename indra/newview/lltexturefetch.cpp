@@ -958,6 +958,7 @@ LLTextureFetchWorker::LLTextureFetchWorker(LLTextureFetch* fetcher,
       mCanUseCapability(true),
       mRegionRetryAttempt(0)
 {
+    LL_DEBUGS() << "Creating new LLTextureWorker instance for " << id << " desired discard level " << discard << LL_ENDL;
     // <FS:Ansariel> OpenSim compatibility
     mCanUseNET = !LLGridManager::instance().isInSecondLife() && mUrl.empty() ;
 
@@ -2684,6 +2685,7 @@ LLTextureFetch::LLTextureFetch(LLTextureCache* cache, bool threaded, bool qa_mod
       mOriginFetchSource(LLTextureFetch::FROM_ALL),
       mTextureInfoMainThread(false)
 {
+    LL_DEBUGS() << "Created LLTextureFetch for id " << mID << LL_ENDL;
     mMaxBandwidth = gSavedSettings.getF32("ThrottleBandwidthKBPS");
     mTextureInfo.setLogging(true);
 
@@ -2716,6 +2718,7 @@ LLTextureFetch::LLTextureFetch(LLTextureCache* cache, bool threaded, bool qa_mod
 
 LLTextureFetch::~LLTextureFetch()
 {
+    LL_DEBUGS() << "Destroyed LLTextureFetch for id " << mID << LL_ENDL;
     clearDeleteList();
 
     while (! mCommands.empty())
@@ -2737,6 +2740,7 @@ S32 LLTextureFetch::createRequest(FTType f_type, const std::string& url, const L
                                    S32 w, S32 h, S32 c, S32 desired_discard, bool needs_aux, bool can_use_http)
 {
     LL_PROFILE_ZONE_SCOPED;
+    LL_DEBUGS() << "creating LLTextureFetch request for " << id << " with desired discard " << desired_discard << " w " << w << " h " << h << LL_ENDL;
     if (mDebugPause)
     {
         return -1;
@@ -3586,8 +3590,9 @@ void LLTextureFetchWorker::setState(e_state new_state)
     // blurry images fairly frequently. Presumably this is an
     // indication of some subtle timing or locking issue.
 
-//      LL_INFOS(LOG_TXT) << "id: " << mID << " FTType: " << mFTType << " disc: " << mDesiredDiscard << " sz: " << mDesiredSize << " state: " << e_state_name[mState] << " => " << e_state_name[new_state] << LL_ENDL;
+        // LL_INFOS(LOG_TXT) << "id: " << mID << " FTType: " << mFTType << " disc: " << mDesiredDiscard << " sz: " << mDesiredSize << " state: " << e_state_name[mState] << " => " << e_state_name[new_state] << LL_ENDL;
     }
+    LL_DEBUGS() << "id: " << mID << " FTType: " << mFTType << " disc: " << mDesiredDiscard << " sz: " << mDesiredSize << " state: " << e_state_name[mState] << " => " << e_state_name[new_state] << LL_ENDL;
 
     F32 d_time = mStateTimer.getElapsedTimeF32();
     if (d_time >= 0.0001F)

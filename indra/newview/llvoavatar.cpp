@@ -728,6 +728,7 @@ LLVOAvatar::LLVOAvatar(const LLUUID& id,
     mIsUIAvatar(false),
     mEnableDefaultMotions(true)
 {
+    LL_DEBUGS() << "Creating LLVOAvatar for id " << id << LL_ENDL;
     LL_DEBUGS("AvatarRender") << "LLVOAvatar Constructor (0x" << this << ") id:" << mID << LL_ENDL;
 
     //VTResume();  // VTune
@@ -886,6 +887,7 @@ void LLVOAvatar::debugAvatarRezTime(std::string notification_name, std::string c
 //------------------------------------------------------------------------
 LLVOAvatar::~LLVOAvatar()
 {
+    LL_DEBUGS() << "Destroying LLVOAvatar for id " << mID << LL_ENDL;
     if (!mFullyLoaded)
     {
         debugAvatarRezTime("AvatarRezLeftCloudNotification","left after ruth seconds as cloud");

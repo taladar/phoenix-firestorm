@@ -334,6 +334,7 @@ LLViewerObject::LLViewerObject(const LLUUID &id, const LLPCode pcode, LLViewerRe
     mCachedOwnerInMuteList(false),
     mRiggedAttachedWarned(false)
 {
+    LL_DEBUGS() << "Creating LLViewerObject with id " << id << " and pcode " << (U32)pcode << LL_ENDL;
     if (!is_global)
     {
         llassert(mRegionp);
@@ -357,6 +358,7 @@ LLViewerObject::LLViewerObject(const LLUUID &id, const LLPCode pcode, LLViewerRe
 
 LLViewerObject::~LLViewerObject()
 {
+    LL_DEBUGS() << "Destroying LLViewerObject with id " << mID << LL_ENDL;
     deleteTEImages();
 
     // unhook from reflection probe manager
@@ -5561,6 +5563,7 @@ void LLViewerObject::changeTESpecularMap(S32 index, LLViewerTexture* new_image)
 
 S32 LLViewerObject::setTETexture(const U8 te, const LLUUID& uuid)
 {
+    LL_DEBUGS() << "LLViewerObject::setTETexture(" << (U32)te << ", " << uuid << ") (from previous " << getTEImage(te)->getID() << ") on object " << mID << LL_ENDL;
     // Invalid host == get from the agent's sim
     LLViewerFetchedTexture *image = LLViewerTextureManager::getFetchedTexture(
         uuid, FTT_DEFAULT, TRUE, LLGLTexture::BOOST_NONE, LLViewerTexture::LOD_TEXTURE, 0, 0, LLHost());
@@ -5569,6 +5572,7 @@ S32 LLViewerObject::setTETexture(const U8 te, const LLUUID& uuid)
 
 S32 LLViewerObject::setTENormalMap(const U8 te, const LLUUID& uuid)
 {
+    LL_DEBUGS() << "LLViewerObject::setTENormalMap(" << (U32)te << ", " << uuid << ") (from previous " << getTEImage(te)->getID() << ") on object " << mID << LL_ENDL;
     LLViewerFetchedTexture *image = (uuid == LLUUID::null) ? NULL : LLViewerTextureManager::getFetchedTexture(
         uuid, FTT_DEFAULT, TRUE, LLGLTexture::BOOST_NONE, LLViewerTexture::LOD_TEXTURE, 0, 0, LLHost());
     return setTENormalMapCore(te, image);
@@ -5576,6 +5580,7 @@ S32 LLViewerObject::setTENormalMap(const U8 te, const LLUUID& uuid)
 
 S32 LLViewerObject::setTESpecularMap(const U8 te, const LLUUID& uuid)
 {
+    LL_DEBUGS() << "LLViewerObject::setTESpecularMap(" << (U32)te << ", " << uuid << ") (from previous " << getTEImage(te)->getID() << ") on object " << mID << LL_ENDL;
     LLViewerFetchedTexture *image = (uuid == LLUUID::null) ? NULL : LLViewerTextureManager::getFetchedTexture(
         uuid, FTT_DEFAULT, TRUE, LLGLTexture::BOOST_NONE, LLViewerTexture::LOD_TEXTURE, 0, 0, LLHost());
     return setTESpecularMapCore(te, image);

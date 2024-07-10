@@ -765,10 +765,12 @@ BOOL LLVLComposition::generateMinimapTileLand(const F32 x, const F32 y,
 
             if (delete_raw_post)
             {
+                LL_DEBUGS() << "Destroying raw image data for " << tex->getID() << " from LLVLComposition::generateMinimapTileLand() delete_raw_post case" << LL_ENDL;
                 tex->destroyRawImage();
             }
             if (delete_raw_post_emissive)
             {
+                LL_DEBUGS() << "Destroying raw image data for " << tex->getID() << " from LLVLComposition::generateMinimapTileLand() delete_raw_post_emissive case" << LL_ENDL;
                 tex_emissive->destroyRawImage();
             }
 

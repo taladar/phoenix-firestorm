@@ -142,6 +142,7 @@ LLLocalBitmap::~LLLocalBitmap()
 
     // delete self from gimagelist
     LLViewerFetchedTexture* image = gTextureList.findImage(mWorldID, TEX_LIST_STANDARD);
+    LL_DEBUGS() << "Deleting image " << image->getID() << " from destructor of LLLocalBitmap" << LL_ENDL;
     gTextureList.deleteImage(image);
 
     if (image)
@@ -229,6 +230,7 @@ bool LLLocalBitmap::updateSelf(EUpdateType optional_firstupdate)
                         LLViewerFetchedTexture* image = gTextureList.findImage(old_id, TEX_LIST_STANDARD);
                         if (image != NULL)
                         {
+                            LL_DEBUGS() << "Deleting image " << image->getID() << " from gTextureList in LLLocalBitmap::updateSelf as part of replacement of old id " << old_id << " with mWorldID " << mWorldID << LL_ENDL;
                             gTextureList.deleteImage(image);
                             image->unref();
                         }

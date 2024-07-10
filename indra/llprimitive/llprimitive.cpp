@@ -1139,7 +1139,7 @@ namespace
     {
         const size_t size(sizeof(T));
 
-        LL_DEBUGS("TEXTUREENTRY") << "Request to read items of size " << size << " with swizzle " << type << " from buffer sized " << (source_end - source) << LL_ENDL;
+        //LL_DEBUGS("TEXTUREENTRY") << "Request to read items of size " << size << " with swizzle " << type << " from buffer sized " << (source_end - source) << LL_ENDL;
 
         if ((source + size + 1) > source_end)
         {
@@ -1556,7 +1556,7 @@ S32 LLPrimitive::unpackTEMessage(LLDataPacker &dp)
     U32 i;
 
     U8 *cur_ptr = packed_buffer;
-    LL_DEBUGS("TEXTUREENTRY") << "Texture Entry with buffer sized: " << size << LL_ENDL;
+    //LL_DEBUGS("TEXTUREENTRY") << "Texture Entry with buffer sized: " << size << LL_ENDL;
     U8 *buffer_end = packed_buffer + size;
 
     if (!(  unpack_TEField<LLUUID>(image_data, face_count, cur_ptr, buffer_end, MVT_LLUUID) &&

@@ -83,6 +83,7 @@ S32 LLVOTree::sMaxTreeSpecies = 0;
 LLVOTree::LLVOTree(const LLUUID &id, const LLPCode pcode, LLViewerRegion *regionp):
                         LLViewerObject(id, pcode, regionp)
 {
+    LL_DEBUGS() << "Creating LLVOTree for id " << id << LL_ENDL;
     mSpecies = 0;
     mFrameCount = 0;
     mWind = mRegionp->mWind.getVelocity(getPositionRegion());
@@ -95,6 +96,7 @@ LLVOTree::LLVOTree(const LLUUID &id, const LLPCode pcode, LLViewerRegion *region
 
 LLVOTree::~LLVOTree()
 {
+    LL_DEBUGS() << "Destroying LLVOTree for id " << mID << LL_ENDL;
     if (mData)
     {
         delete[] mData;

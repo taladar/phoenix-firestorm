@@ -644,6 +644,7 @@ LLViewerTexture::LLViewerTexture(const LLUUID& id, BOOL usemipmaps) :
     LLGLTexture(usemipmaps),
     mID(id)
 {
+    LL_DEBUGS() << "Creating new LLViewerTexture for " << id << LL_ENDL;
     init(true);
 
     sImageCount++;
@@ -1081,6 +1082,7 @@ LLViewerFetchedTexture::LLViewerFetchedTexture(const LLUUID& id, FTType f_type, 
     : LLViewerTexture(id, usemipmaps),
     mTargetHost(host)
 {
+    LL_DEBUGS() << "Creating new LLViewerFetchedTexture for " << id << LL_ENDL;
     init(TRUE);
     mFTType = f_type;
     if (mFTType == FTT_HOST_BAKE)
@@ -1104,6 +1106,7 @@ LLViewerFetchedTexture::LLViewerFetchedTexture(const std::string& url, FTType f_
     : LLViewerTexture(id, usemipmaps),
     mUrl(url)
 {
+    LL_DEBUGS() << "Creating new LLViewerFetchedTexture (with url " << url << ") for " << id << LL_ENDL;
     init(TRUE);
     mFTType = f_type;
     generateGLTexture();
@@ -1217,6 +1220,7 @@ void LLViewerFetchedTexture::cleanup()
     mNeedsAux = FALSE;
 
     // Clean up image data
+    LL_DEBUGS() << "Destroying raw, cached raw and saved raw image data for " << this->getID() << " in LLViewerFetchedTexture::cleanup()" << LL_ENDL;
     destroyRawImage();
     mCachedRawImage = NULL;
     mCachedRawDiscardLevel = -1;
@@ -1254,6 +1258,7 @@ void LLViewerFetchedTexture::loadFromFastCache()
         if(mFullWidth > MAX_IMAGE_SIZE || mFullHeight > MAX_IMAGE_SIZE)
         {
             //discard all oversized textures.
+            LL_DEBUGS() << "Destroying raw image data for " << this->getID() << " because it is considered oversized in LLViewerFetchedTexture::loadFromFastCache()" << LL_ENDL;
             destroyRawImage();
             LL_WARNS() << "oversized, setting as missing" << LL_ENDL;
             setIsMissingAsset();
@@ -1385,6 +1390,7 @@ void LLViewerFetchedTexture::dump()
 // ONLY called from LLViewerFetchedTextureList
 void LLViewerFetchedTexture::destroyTexture()
 {
+    LL_DEBUGS() << "LLViewerFetchedTexture::destroyTexture() called for " << this->getID() << LL_ENDL;
     LL_PROFILE_ZONE_SCOPED_CATEGORY_TEXTURE;
 
     if (mNeedsCreateTexture)//return if in the process of generating a new texture.
@@ -1393,6 +1399,7 @@ void LLViewerFetchedTexture::destroyTexture()
     }
 
     //LL_DEBUGS("Avatar") << mID << LL_ENDL;
+    LL_DEBUGS() << "LLViewerFetchedTexture::destroyTexture() calling destroyGLTexture() for " << this->getID() << LL_ENDL;
     destroyGLTexture();
     mFullyLoaded = FALSE;
 }
@@ -1432,11 +1439,13 @@ void LLViewerFetchedTexture::addToCreateTexture()
         //just update some variables, not to create a real GL texture.
         createGLTexture(mRawDiscardLevel, mRawImage, 0, FALSE);
         mNeedsCreateTexture = false;
+        LL_DEBUGS() << "Destroying raw image data for " << this->getID() << " in isForSculptOnly() path in LLViewerFetchedTexture::addToCreateTexture()" << LL_ENDL;
         destroyRawImage();
     }
     else if(!force_update && getDiscardLevel() > -1 && getDiscardLevel() <= mRawDiscardLevel)
     {
         mNeedsCreateTexture = false;
+        LL_DEBUGS() << "Destroying raw image data for " << this->getID() << " in case the GL texture has a better or equal discard level (" << getDiscardLevel() << ") to the raw image (" << mRawDiscardLevel << " and update is not forced" << LL_ENDL;
         destroyRawImage();
     }
     else
@@ -1473,6 +1482,7 @@ void LLViewerFetchedTexture::addToCreateTexture()
                         if(mRawDiscardLevel >= getDiscardLevel() && getDiscardLevel() > 0)
                         {
                             mNeedsCreateTexture = false;
+                            LL_DEBUGS() << "Destroying raw image data for " << this->getID() << " in deeply nested case" << LL_ENDL;
                             destroyRawImage();
                             return;
                         }
@@ -1501,6 +1511,7 @@ BOOL LLViewerFetchedTexture::preCreateTexture(S32 usename/*= 0*/)
 
     if (!mNeedsCreateTexture)
     {
+        LL_DEBUGS() << "Destroying raw image for " << this->getID() << " in LLViewerFetchedTexture::preCreateTexture() when mNeedsCreateTexture is false" << LL_ENDL;
         destroyRawImage();
         return FALSE;
     }
@@ -1512,7 +1523,7 @@ BOOL LLViewerFetchedTexture::preCreateTexture(S32 usename/*= 0*/)
     }
     if (mRawImage->isBufferInvalid())
     {
-        LL_WARNS() << "Can't create a texture: invalid image data" << LL_ENDL;
+        LL_WARNS() << "Can't create a texture " << this->getID() << ": invalid image data" << LL_ENDL;
         destroyRawImage();
         return FALSE;
     }
@@ -1614,6 +1625,7 @@ BOOL LLViewerFetchedTexture::preCreateTexture(S32 usename/*= 0*/)
         // be renderd as 'missing image' and to stop requesting data
         LL_WARNS() << "!size_ok, setting as missing" << LL_ENDL;
         setIsMissingAsset();
+        LL_DEBUGS() << "Destroying raw image data for " << this->getID() << " because it is inappropriately sized" << LL_ENDL;
         destroyRawImage();
         return FALSE;
     }
@@ -1648,6 +1660,7 @@ BOOL LLViewerFetchedTexture::createTexture(S32 usename/*= 0*/)
         return FALSE;
     }
 
+    LL_DEBUGS() << "Creating GL texture for " << mID << " from raw image of discard level " << mRawDiscardLevel << LL_ENDL;
     BOOL res = mGLTexturep->createGLTexture(mRawDiscardLevel, mRawImage, usename, TRUE, mBoostLevel);
 
     return res;
@@ -1669,6 +1682,7 @@ void LLViewerFetchedTexture::postCreateTexture()
     if (!needsToSaveRawImage())
     {
         mNeedsAux = FALSE;
+        LL_DEBUGS() << "Destroying raw image for " << this->getID() << " in LLViewerFetchedTexture::postCreateTexture() because needsToSaveRawImage() returned false" << LL_ENDL;
         destroyRawImage();
     }
 
@@ -1896,6 +1910,8 @@ S32 LLViewerFetchedTexture::getCurrentDiscardLevelForFetching()
         }
     }
 
+    LL_DEBUGS() << "getCurrentDiscardLevelForFetching() for " << this->getID() << " returning " << current_discard << " (with mRawDiscardLevel " << mRawDiscardLevel << " mSavedRawDiscardLevel " << mSavedRawDiscardLevel << " mCachedRawDiscardLevel " << mCachedRawDiscardLevel << ")" << LL_ENDL;
+
     return current_discard;
 }
 
@@ -1932,6 +1948,7 @@ void LLViewerFetchedTexture::setBoostLevel(S32 level)
 
 bool LLViewerFetchedTexture::updateFetch()
 {
+    LL_DEBUGS() << "Calling LLViewerFetchedTexture::updateFetch() for " << this->getID() << LL_ENDL;
     LL_PROFILE_ZONE_SCOPED_CATEGORY_TEXTURE;
     static LLCachedControl<bool> textures_decode_disabled(gSavedSettings,"TextureDecodeDisabled", false);
 
@@ -1983,6 +2000,7 @@ bool LLViewerFetchedTexture::updateFetch()
 
     S32 current_discard = getCurrentDiscardLevelForFetching();
     S32 desired_discard = getDesiredDiscardLevel();
+    LL_DEBUGS() << "Inside LLViewerFetchedTexture::updateFetch() for " << this->getID() << " current_discard (for fetching) " << current_discard << " desired discard " << desired_discard << LL_ENDL;
     F32 decode_priority = mMaxVirtualSize;
 
     if (mIsFetching)
@@ -1994,13 +2012,19 @@ bool LLViewerFetchedTexture::updateFetch()
         if (mRawImage.notNull()) sRawCount--;
         if (mAuxRawImage.notNull()) sAuxCount--;
         // keep in mind that fetcher still might need raw image, don't modify original
+        LL_DEBUGS() << "Inside LLViewerFetchedTexture::updateFetch() for " << this->getID() << " calling getRequestFinished" << LL_ENDL;
         bool finished = LLAppViewer::getTextureFetch()->getRequestFinished(getID(), fetch_discard, mRawImage, mAuxRawImage,
                                                                            mLastHttpGetStatus);
-        if (mRawImage.notNull()) sRawCount++;
+        if (mRawImage.notNull())
+        {
+            sRawCount++;
+            LL_DEBUGS() << "Inside LLViewerFetchedTexture::updateFetch() for " << this->getID() << " got new mRawImage from fetch worker with discard level " << fetch_discard << LL_ENDL;
+        }
         if (mAuxRawImage.notNull())
         {
             mHasAux = TRUE;
             sAuxCount++;
+            LL_DEBUGS() << "Inside LLViewerFetchedTexture::updateFetch() for " << this->getID() << " got new mAuxRawImage from fetch worker with discard level " << fetch_discard << LL_ENDL;
         }
         if (finished)
         {
@@ -2024,6 +2048,7 @@ bool LLViewerFetchedTexture::updateFetch()
                 mIsFetched = TRUE;
                 tester->updateTextureLoadingStats(this, mRawImage, LLAppViewer::getTextureFetch()->isFromLocalCache(mID));
             }
+            LL_DEBUGS() << "Inside LLViewerTextureFetchUnit::updateFetchState() for " << this->getID() << " setting mRawDiscardLevel (old value " << mRawDiscardLevel  << ") to fetch_discard " << fetch_discard << LL_ENDL;
             mRawDiscardLevel = fetch_discard;
             if ((mRawImage->getDataSize() > 0 && mRawDiscardLevel >= 0) &&
                 (current_discard < 0 || mRawDiscardLevel < current_discard))
@@ -2036,7 +2061,7 @@ bool LLViewerFetchedTexture::updateFetch()
                 if(mFullWidth > MAX_IMAGE_SIZE || mFullHeight > MAX_IMAGE_SIZE)
                 {
                     //discard all oversized textures.
-                    LL_INFOS() << "Discarding oversized texture, width= "
+                    LL_INFOS() << "Discarding oversized texture " << this->getID() << ", width= "
                         << mFullWidth << ", height= "
                         << mFullHeight << LL_ENDL;
                     destroyRawImage();
@@ -2083,6 +2108,7 @@ bool LLViewerFetchedTexture::updateFetch()
                 LL_PROFILE_ZONE_NAMED_CATEGORY_TEXTURE("vftuf - data not needed");
                 // Data is ready but we don't need it
                 // (received it already while fetcher was writing to disk)
+                LL_DEBUGS() << "Destroying raw image for " << this->getID() << " because we \"do not need it\", whatever that is supposed to mean" << LL_ENDL;
                 destroyRawImage();
                 return false; // done
             }
@@ -2122,12 +2148,14 @@ bool LLViewerFetchedTexture::updateFetch()
                         //desired_discard = dis_level;
                     }
                 }
+                LL_DEBUGS() << "Destroying raw image for " << this->getID() << " because raw discard level is invalid " << mRawDiscardLevel << LL_ENDL;
                 destroyRawImage();
             }
             else if (mRawImage.notNull())
             {
                 // We have data, but our fetch failed to return raw data
                 // *TODO: FIgure out why this is happening and fix it
+                LL_DEBUGS() << "Destroying raw image for " << this->getID() << " due to non-null raw image in TODO figure out code path" << LL_ENDL;
                 destroyRawImage();
             }
         }
@@ -2170,6 +2198,7 @@ bool LLViewerFetchedTexture::updateFetch()
             && (current_discard < 0 || current_discard > mCachedRawDiscardLevel))
     {
         make_request = false;
+        LL_DEBUGS() << "Switching to cached raw image for id " << this->getID() << LL_ENDL;
         switchToCachedImage(); //use the cached raw data first
     }
 
@@ -2247,7 +2276,7 @@ bool LLViewerFetchedTexture::updateFetch()
         const F32 FETCH_IDLE_TIME = 0.1f;
         if (mLastPacketTimer.getElapsedTimeF32() > FETCH_IDLE_TIME)
         {
-            LL_DEBUGS("Texture") << "exceeded idle time " << FETCH_IDLE_TIME << ", deleting request: " << getID() << LL_ENDL;
+            LL_DEBUGS("Texture") << this->getID() << " exceeded idle time " << FETCH_IDLE_TIME << ", deleting request: " << getID() << LL_ENDL;
             LLAppViewer::getTextureFetch()->deleteRequest(getID(), true);
             mHasFetcher = FALSE;
         }
@@ -2258,6 +2287,7 @@ bool LLViewerFetchedTexture::updateFetch()
 
 void LLViewerFetchedTexture::clearFetchedResults()
 {
+    LL_DEBUGS() << "LLViewerFetchedTexture::clearFetchedResults() called for " << this->getID() << LL_ENDL;
     // <FS:Ansariel> For texture refresh
     mIsMissingAsset = FALSE;
 
@@ -2266,6 +2296,7 @@ void LLViewerFetchedTexture::clearFetchedResults()
         return;
     }
 
+    LL_DEBUGS() << "LLViewerFetchedTexture::clearFetchedResults() calling cleanup() and destroyGLTexture() for " << this->getID() << LL_ENDL;
     cleanup();
     destroyGLTexture();
 
@@ -2290,6 +2321,7 @@ void LLViewerFetchedTexture::forceToDeleteRequest()
 
 void LLViewerFetchedTexture::setIsMissingAsset(BOOL is_missing)
 {
+    LL_DEBUGS() << "LLViewerFetchedTexture::setIsMissingAsset(" << is_missing << ") called for " << this->getID() << LL_ENDL;
     if (is_missing == mIsMissingAsset)
     {
         return;
@@ -2542,6 +2574,7 @@ bool LLViewerFetchedTexture::doLoadedCallbacks()
     }
     if(mPauseLoadedCallBacks)
     {
+        LL_DEBUGS() << "Destroying raw image for " << this->getID() << " because loaded callbacks are paused" << LL_ENDL;
         destroyRawImage();
         return false; //paused
     }
@@ -2679,7 +2712,9 @@ bool LLViewerFetchedTexture::doLoadedCallbacks()
         // Do a readback to get the GL data into the raw image
         // We have GL data.
 
+        LL_DEBUGS() << "Destroying raw image for " << this->getID() << " of discard level " << mRawDiscardLevel << " because we are about to load it back from the GL data (lie the comments) with discard level " << getDiscardLevel() << LL_ENDL;
         destroyRawImage();
+        // I assume from the comment above this function is supposed to do a readback from GL data but it does not such thing???
         reloadRawImage(mLoadedCallbackDesiredDiscardLevel);
         llassert(mRawImage.notNull());
         llassert(!mNeedsAux || mAuxRawImage.notNull());
@@ -2755,6 +2790,7 @@ bool LLViewerFetchedTexture::doLoadedCallbacks()
     }
 
     // Done with any raw image data at this point (will be re-created if we still have callbacks)
+    LL_DEBUGS() << "Destroying raw image for " << this->getID() << " because doLoadedCallbacks() is \"done with any raw image data at this point\"" << LL_ENDL;
     destroyRawImage();
 
     //
@@ -2794,6 +2830,7 @@ void LLViewerFetchedTexture::forceImmediateUpdate()
 
 LLImageRaw* LLViewerFetchedTexture::reloadRawImage(S8 discard_level)
 {
+    LL_DEBUGS() << "LLViewerFetchedTexture::reloadRawImage(" << (S32)discard_level << ") called for id " << this->getID() << LL_ENDL;
     llassert(mGLTexturep.notNull());
     llassert(discard_level >= 0);
     llassert(mComponents > 0);
@@ -2806,6 +2843,7 @@ LLImageRaw* LLViewerFetchedTexture::reloadRawImage(S8 discard_level)
 
     if(mSavedRawDiscardLevel >= 0 && mSavedRawDiscardLevel <= discard_level)
     {
+        LL_DEBUGS() << "Switching raw image to saved raw image with discard level " << mSavedRawDiscardLevel << " for id " << this->getID() << LL_ENDL;
         if (mSavedRawDiscardLevel != discard_level
             && mBoostLevel != BOOST_ICON
             && mBoostLevel != BOOST_THUMBNAIL)
@@ -2824,11 +2862,13 @@ LLImageRaw* LLViewerFetchedTexture::reloadRawImage(S8 discard_level)
         //force to fetch raw image again if cached raw image is not good enough.
         if(mCachedRawDiscardLevel > discard_level)
         {
+            LL_DEBUGS() << "Switching raw image to insufficiently detailed cached raw image with discard level " << mCachedRawDiscardLevel << " for id " << this->getID() << LL_ENDL;
             mRawImage = mCachedRawImage;
             mRawDiscardLevel = mCachedRawDiscardLevel;
         }
         else //cached raw image is good enough, copy it.
         {
+            LL_DEBUGS() << "Switching raw image to cached raw image with discard level " << mCachedRawDiscardLevel << " for id " << this->getID() << LL_ENDL;
             if(mCachedRawDiscardLevel != discard_level)
             {
                 mRawImage = new LLImageRaw(getWidth(discard_level), getHeight(discard_level), getComponents());
@@ -2849,11 +2889,14 @@ LLImageRaw* LLViewerFetchedTexture::reloadRawImage(S8 discard_level)
 
 bool LLViewerFetchedTexture::needsToSaveRawImage()
 {
-    return mForceToSaveRawImage || mSaveRawImage;
+    //return mForceToSaveRawImage || mSaveRawImage;
+    // Changed to see what kind of impact it has on the repeated texture operations during debug of texture trashing bug
+    return true;
 }
 
 void LLViewerFetchedTexture::destroyRawImage()
 {
+    LL_DEBUGS() << "LLViewerFetchedTexture::destroyRawImage() for id " << this->getID() << LL_ENDL;
     LL_PROFILE_ZONE_SCOPED_CATEGORY_TEXTURE;
     if (mAuxRawImage.notNull() && !needsToSaveRawImage())
     {
@@ -2889,6 +2932,7 @@ void LLViewerFetchedTexture::switchToCachedImage()
     if(mCachedRawImage.notNull() &&
         !mNeedsCreateTexture) // <--- texture creation is pending, don't step on it
     {
+        LL_DEBUGS() << "LLViewerFetchedTexture::switchToCachedImage() for id " << this->getID() << " switching to cached raw image with discard level " << mCachedRawDiscardLevel << " (previous raw discard level " << mRawDiscardLevel << ")" << LL_ENDL;
         mRawImage = mCachedRawImage;
 
         if (getComponents() != mRawImage->getComponents())
@@ -2911,6 +2955,7 @@ void LLViewerFetchedTexture::switchToCachedImage()
 //virtual
 void LLViewerFetchedTexture::setCachedRawImage(S32 discard_level, LLImageRaw* imageraw)
 {
+    LL_DEBUGS() << "LLViewerFetchedTexture::setCachedRawImage(" << discard_level << ",...) called for id " << this->getID() << LL_ENDL;
     if(imageraw != mRawImage.get())
     {
         if (mBoostLevel == LLGLTexture::BOOST_ICON)
@@ -2952,6 +2997,7 @@ void LLViewerFetchedTexture::setCachedRawImage(S32 discard_level, LLImageRaw* im
 
 void LLViewerFetchedTexture::setCachedRawImage()
 {
+    LL_DEBUGS() << "LLViewerFetchedTexture::setCachedRawImage() called for id " << this->getID() << LL_ENDL;
     LL_PROFILE_ZONE_SCOPED_CATEGORY_TEXTURE;
     if(mRawImage == mCachedRawImage)
     {
@@ -3028,6 +3074,7 @@ void LLViewerFetchedTexture::checkCachedRawSculptImage()
 
 void LLViewerFetchedTexture::saveRawImage()
 {
+    LL_DEBUGS() << "Called LLViewerFetchedTexture::saveRawImage() on id " << this->getID() << " with raw discard level " << mRawDiscardLevel << " and saved raw discard level " << mSavedRawDiscardLevel << " and cached raw discard level " << mCachedRawDiscardLevel << LL_ENDL;
     LL_PROFILE_ZONE_SCOPED_CATEGORY_TEXTURE;
     if(mRawImage.isNull() || mRawImage == mSavedRawImage || (mSavedRawDiscardLevel >= 0 && mSavedRawDiscardLevel <= mRawDiscardLevel))
     {
@@ -3079,6 +3126,7 @@ void LLViewerFetchedTexture::saveRawImage()
 //force to refetch the texture to the discard level
 void LLViewerFetchedTexture::forceToRefetchTexture(S32 desired_discard, F32 kept_time)
 {
+    LL_DEBUGS() << "Called LLViewerFetchedTexture::forceToRefetchTexture() on id " << this->getID() << " with desired discard " << desired_discard << " and raw discard level " << mRawDiscardLevel << " and saved raw discard level " << mSavedRawDiscardLevel << " and cached raw discard level " << mCachedRawDiscardLevel << LL_ENDL;
     if(mForceToSaveRawImage)
     {
         desired_discard = llmin(desired_discard, mDesiredSavedRawDiscardLevel);
@@ -3096,6 +3144,7 @@ void LLViewerFetchedTexture::forceToRefetchTexture(S32 desired_discard, F32 kept
 
 void LLViewerFetchedTexture::forceToSaveRawImage(S32 desired_discard, F32 kept_time)
 {
+    LL_DEBUGS() << "Called LLViewerFetchedTexture::forceToSaveRawImage() on id " << this->getID() << " with desired discard " << desired_discard << " and raw discard level " << mRawDiscardLevel << " and saved raw discard level " << mSavedRawDiscardLevel << " and cached raw discard level " << mCachedRawDiscardLevel << LL_ENDL;
     mKeptSavedRawImageTime = kept_time;
     mLastReferencedSavedRawImageTime = sCurrentTime;
 
@@ -3124,6 +3173,7 @@ void LLViewerFetchedTexture::forceToSaveRawImage(S32 desired_discard, F32 kept_t
 }
 void LLViewerFetchedTexture::destroySavedRawImage()
 {
+    LL_DEBUGS() << "LLViewerFetchedTexture::destroySavedRawImage() for " << this->getID() << " was called" << LL_ENDL;
     if(mLastReferencedSavedRawImageTime < mKeptSavedRawImageTime)
     {
         return; //keep the saved raw image.

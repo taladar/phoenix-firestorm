@@ -46,7 +46,7 @@ LLFetchedGLTFMaterial::LLFetchedGLTFMaterial()
 
 LLFetchedGLTFMaterial::~LLFetchedGLTFMaterial()
 {
-    
+
 }
 
 LLFetchedGLTFMaterial& LLFetchedGLTFMaterial::operator=(const LLFetchedGLTFMaterial& rhs)
@@ -150,6 +150,7 @@ LLViewerFetchedTexture* fetch_texture(const LLUUID& id)
     LLViewerFetchedTexture* img = nullptr;
     if (id.notNull())
     {
+        LL_DEBUGS() << "LLFetchedGLTFMaterial::fetch_texture() calling getFetchedTexture for id " << id << LL_ENDL;
         img = LLViewerTextureManager::getFetchedTexture(id, FTT_DEFAULT, TRUE, LLGLTexture::BOOST_NONE, LLViewerTexture::LOD_TEXTURE);
         img->addTextureStats(64.f * 64.f, TRUE);
     }
@@ -162,24 +163,29 @@ bool LLFetchedGLTFMaterial::replaceLocalTexture(const LLUUID& tracking_id, const
     if (mTextureId[LLGLTFMaterial::GLTF_TEXTURE_INFO_BASE_COLOR] == old_id)
     {
         mTextureId[LLGLTFMaterial::GLTF_TEXTURE_INFO_BASE_COLOR] = new_id;
+        LL_DEBUGS() << "LLFetchedGLTFMaterial::replaceLocalTexture(" << tracking_id << ", " << old_id << ", " << new_id << ") calling fetch_texture(" << new_id << ") for base color case" << LL_ENDL;
         mBaseColorTexture = fetch_texture(new_id);
         res = true;
     }
     if (mTextureId[LLGLTFMaterial::GLTF_TEXTURE_INFO_NORMAL] == old_id)
     {
         mTextureId[LLGLTFMaterial::GLTF_TEXTURE_INFO_NORMAL] = new_id;
+        LL_DEBUGS() << "LLFetchedGLTFMaterial::replaceLocalTexture(" << tracking_id << ", " << old_id << ", " << new_id << ") calling fetch_texture(" << new_id << ") for normal case" << LL_ENDL;
+        mBaseColorTexture = fetch_texture(new_id);
         mNormalTexture = fetch_texture(new_id);
         res = true;
     }
     if (mTextureId[LLGLTFMaterial::GLTF_TEXTURE_INFO_METALLIC_ROUGHNESS] == old_id)
     {
         mTextureId[LLGLTFMaterial::GLTF_TEXTURE_INFO_METALLIC_ROUGHNESS] = new_id;
+        LL_DEBUGS() << "LLFetchedGLTFMaterial::replaceLocalTexture(" << tracking_id << ", " << old_id << ", " << new_id << ") calling fetch_texture(" << new_id << ") for metallic roughness case" << LL_ENDL;
         mMetallicRoughnessTexture = fetch_texture(new_id);
         res = true;
     }
     if (mTextureId[LLGLTFMaterial::GLTF_TEXTURE_INFO_EMISSIVE] == old_id)
     {
         mTextureId[LLGLTFMaterial::GLTF_TEXTURE_INFO_EMISSIVE] = new_id;
+        LL_DEBUGS() << "LLFetchedGLTFMaterial::replaceLocalTexture(" << tracking_id << ", " << old_id << ", " << new_id << ") calling fetch_texture(" << new_id << ") for emissive case" << LL_ENDL;
         mEmissiveTexture = fetch_texture(new_id);
         res = true;
     }

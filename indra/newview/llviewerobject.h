@@ -1029,7 +1029,10 @@ class LLAlphaObject : public LLViewerObject
 public:
     LLAlphaObject(const LLUUID &id, const LLPCode pcode, LLViewerRegion *regionp)
     : LLViewerObject(id,pcode,regionp)
-    { mDepth = 0.f; }
+    {
+        LL_DEBUGS() << "Creating LLAlphaObject for id " << id << LL_ENDL;
+        mDepth = 0.f;
+    }
 
     virtual F32 getPartSize(S32 idx);
     virtual void getGeometry(S32 idx,
@@ -1050,7 +1053,9 @@ class LLStaticViewerObject : public LLViewerObject
 public:
     LLStaticViewerObject(const LLUUID& id, const LLPCode pcode, LLViewerRegion* regionp, BOOL is_global = FALSE)
         : LLViewerObject(id,pcode,regionp, is_global)
-    { }
+    {
+        LL_DEBUGS() << "Creating LLStaticViewerObject for id " << id << LL_ENDL;
+    }
 
     virtual void updateDrawable(BOOL force_damped);
 };

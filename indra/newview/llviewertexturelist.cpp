@@ -276,6 +276,7 @@ void LLViewerTextureList::doPrefetchImages()
 
         if((LLViewerTexture::FETCHED_TEXTURE == texture_type || LLViewerTexture::LOD_TEXTURE == texture_type) && !LLViewerTexture::isInvisiprim(uuid))
         {
+            LL_DEBUGS() << "Calling getFetchedTexture() on id " << uuid << " because it was in " << filename << LL_ENDL;
             LLViewerFetchedTexture* image = LLViewerTextureManager::getFetchedTexture(uuid, FTT_DEFAULT, MIPMAP_TRUE, LLGLTexture::BOOST_NONE, texture_type);
             if (image)
             {
@@ -703,6 +704,9 @@ void LLViewerTextureList::removeImageFromList(LLViewerFetchedTexture *image)
     llassert_always(mInitialized) ;
     llassert(image);
 
+    // to debug texture trashing bug
+    LL_DEBUGS() << "Request to remove image " << image->getID() << " from image list" << LL_ENDL;
+
     S32 count = 0;
     if (image->isInImageList())
     {
@@ -782,6 +786,7 @@ void LLViewerTextureList::deleteImage(LLViewerFetchedTexture *image)
         LLTextureKey key(image->getID(), (ETexListType)image->getTextureListType());
         llverify(mUUIDMap.erase(key) == 1);
         sNumImages--;
+        LL_DEBUGS() << "Request to remove image " << image->getID() << " from image list from deleteImage()" << LL_ENDL;
         removeImageFromList(image);
     }
 }
@@ -895,6 +900,7 @@ extern BOOL gCubeSnapshot;
 
 void LLViewerTextureList::updateImageDecodePriority(LLViewerFetchedTexture* imagep)
 {
+    //LL_DEBUGS() << "Updating image decode priority for " << imagep->getID() << LL_ENDL;
     if (imagep->isInDebug() || imagep->isUnremovable())
     {
         //update_counter--;
@@ -975,8 +981,10 @@ void LLViewerTextureList::updateImageDecodePriority(LLViewerFetchedTexture* imag
         if (imagep->getLastReferencedTimer()->getElapsedTimeF32() > lazy_flush_timeout)
         {
             // Remove the unused image from the image list
-            deleteImage(imagep);
-            imagep = NULL; // should destroy the image
+            //LL_DEBUGS() << "Requesting to delete image " << imagep->getID() << " because it has not been referenced in more than " << lazy_flush_timeout << LL_ENDL;
+            // disabled to see how it affects the texture trashing bug
+            //deleteImage(imagep);
+            //imagep = NULL; // should destroy the image
         }
         return;
     }
@@ -986,7 +994,9 @@ void LLViewerTextureList::updateImageDecodePriority(LLViewerFetchedTexture* imag
         {
             if (imagep->getElapsedLastReferencedSavedRawImageTime() > max_inactive_time)
             {
-                imagep->destroySavedRawImage();
+                //LL_DEBUGS() << "Requesting to destroy saved raw image " << imagep->getID() << " because it has not been referenced in more than " << max_inactive_time << LL_ENDL;
+                // disabled to see how it affects the texture trashing bug
+                //imagep->destroySavedRawImage();
             }
         }
 
@@ -996,6 +1006,7 @@ void LLViewerTextureList::updateImageDecodePriority(LLViewerFetchedTexture* imag
         }
         else if (imagep->isDeletionCandidate())
         {
+            LL_DEBUGS() << "Requesting to destroy texture " << imagep->getID() << " because it is a deletion candidate" << LL_ENDL;
             imagep->destroyTexture();
             return;
         }
@@ -1003,6 +1014,7 @@ void LLViewerTextureList::updateImageDecodePriority(LLViewerFetchedTexture* imag
         {
             if (imagep->getLastReferencedTimer()->getElapsedTimeF32() > max_inactive_time)
             {
+                LL_DEBUGS() << "Setting image " << imagep->getID() << " as a deletion candidate because it is inactive and was last referenced more than " << max_inactive_time << " ago" << LL_ENDL;
                 imagep->setDeletionCandidate();
             }
             return;
@@ -1012,7 +1024,9 @@ void LLViewerTextureList::updateImageDecodePriority(LLViewerFetchedTexture* imag
             imagep->getLastReferencedTimer()->reset();
 
             //reset texture state.
-            imagep->setInactive();
+            //LL_DEBUGS() << "Setting image " << imagep->getID() << " as inactive because it is neither deleted nor a deletion candidate nor inactive and has a number of references that is not equal to the minimum number of references" << LL_ENDL;
+            // disabled to figure out its impact on texture trashing bug, seems to remove the problem that textures are fetched multiple times in a loop but the fetch queue still seems to grow and there are still plenty in state INI and CCH in the list
+            //imagep->setInactive();
         }
     }
 
@@ -1037,6 +1051,7 @@ void LLViewerTextureList::setDebugFetching(LLViewerFetchedTexture* tex, S32 debu
     }
 
     const F32 DEBUG_PRIORITY = 100000.f;
+    LL_DEBUGS() << "Request to remove image " << tex->getID() << " from image list from setDebugFetching()" << LL_ENDL;
     removeImageFromList(tex);
     tex->mMaxVirtualSize = DEBUG_PRIORITY;
     addImageToList(tex);
@@ -1063,10 +1078,11 @@ F32 LLViewerTextureList::updateImagesCreateTextures(F32 max_time)
         imagep->createTexture();
         imagep->postCreateTexture();
 
-        if (create_timer.getElapsedTimeF32() > max_time)
-        {
-            break;
-        }
+        // only commented out for testing purposes to see how it influences the texture trashing bug
+        //if (create_timer.getElapsedTimeF32() > max_time)
+        //{
+        //    break;
+        //}
     }
     mCreateTextureList.erase(mCreateTextureList.begin(), enditer);
     return create_timer.getElapsedTimeF32();
@@ -1111,6 +1127,7 @@ void LLViewerTextureList::forceImmediateUpdate(LLViewerFetchedTexture* imagep)
     }
     if(imagep->isInImageList())
     {
+        LL_DEBUGS() << "Request to remove image " << imagep->getID() << " from image list from forceImmediateUpdate()" << LL_ENDL;
         removeImageFromList(imagep);
     }
 
@@ -1165,6 +1182,7 @@ F32 LLViewerTextureList::updateImagesFetchTextures(F32 max_time)
         if (imagep->getNumRefs() > 1) // make sure this image hasn't been deleted before attempting to update (may happen as a side effect of some other image updating)
 
         {
+            //LL_DEBUGS() << "Calling updateImageDecodePriority() and updateFetch() on " << imagep->getID() << " from updateImagesFetchTextures()" << LL_ENDL;
             updateImageDecodePriority(imagep);
             imagep->updateFetch();
         }
@@ -1492,6 +1510,7 @@ void LLViewerTextureList::receiveImageHeader(LLMessageSystem *msg, void **user_d
     U8 *data = new U8[data_size];
     msg->getBinaryDataFast(_PREHASH_ImageData, _PREHASH_Data, data, data_size);
 
+    LL_DEBUGS() << "Calling getFetchedTexture() with id " << id << " from LLViewerTextureList::receiveImageHeader()" << LL_ENDL;
     LLViewerFetchedTexture *image = LLViewerTextureManager::getFetchedTexture(id, FTT_DEFAULT, TRUE, LLGLTexture::BOOST_NONE, LLViewerTexture::LOD_TEXTURE);
     if (!image)
     {
@@ -1565,6 +1584,7 @@ void LLViewerTextureList::receiveImagePacket(LLMessageSystem *msg, void **user_d
     U8 *data = new U8[data_size];
     msg->getBinaryDataFast(_PREHASH_ImageData, _PREHASH_Data, data, data_size);
 
+    LL_DEBUGS() << "Calling getFetchedTexture() for id " << id << " from LLViewerTextureManager::receiveImagePacket()" << LL_ENDL;
     LLViewerFetchedTexture *image = LLViewerTextureManager::getFetchedTexture(id, FTT_DEFAULT, TRUE, LLGLTexture::BOOST_NONE, LLViewerTexture::LOD_TEXTURE);
     if (!image)
     {
