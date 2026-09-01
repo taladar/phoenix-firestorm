@@ -257,6 +257,13 @@ namespace
             LLSD entry = LLSD::emptyMap();
             entry["id"]            = avatar->getID();
             entry["is_self"]       = avatar->isSelf();
+            // An animesh object is an LLControlAvatar: it rides the avatar
+            // skeleton and so turns up in LLCharacter::sInstances, but it has
+            // no agent behind it. Counting one as an avatar overstates how many
+            // residents are present and invites a comparison to read a rezzed
+            // animesh as a person, so say which it is rather than dropping it --
+            // whether the animesh rezzed at all is worth comparing too.
+            entry["is_control_avatar"] = avatar->isControlAvatar();
             entry["position"]      = ll_sd_from_vector3(avatar->getPositionRegion());
             entry["rotation"]      = ll_sd_from_quaternion(avatar->getRotationRegion());
             entry["is_fully_loaded"] = avatar->isFullyLoaded();
