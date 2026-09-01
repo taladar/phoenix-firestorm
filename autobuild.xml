@@ -888,11 +888,11 @@
             <key>archive</key>
             <map>
               <key>hash</key>
-              <string>f9c203d45f22e3b448653d2f652806d8</string>
+              <string>271b9f641c50a61bb251ea087fcad7c8</string>
               <key>hash_algorithm</key>
               <string>md5</string>
               <key>url</key>
-              <string>file:///opt/firestorm/fmodstudio-2.03.12-linux64-260671925.tar.bz2</string>
+              <string>file:///home/taladar/devel/3rdparty/3p-fmodstudio/fmodstudio-2.03.07-linux64-261021739.tar.bz2</string>
             </map>
             <key>name</key>
             <string>linux64</string>
