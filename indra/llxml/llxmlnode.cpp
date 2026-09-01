@@ -3431,13 +3431,57 @@ bool LLXMLNode::fromXMLRPCValue(LLSD& target)
 
     if (childp->hasName("int") || childp->hasName("i4"))
     {
-        target.assign(std::stoi(childp->getTextContents()));
+        // <FS:Test> std::stoi throws on anything that is not a valid S32, and
+        // this is parsing a server's XML-RPC reply -- so an out-of-range or
+        // malformed <i4> from any grid used to escape as an uncaught
+        // std::out_of_range and terminate the viewer during login.
+        //
+        // Out of range is not merely hypothetical: <i4> is signed 32-bit, but
+        // several login-response fields are naturally U32 (circuit_code above
+        // all, which is random and exceeds S32_MAX about half the time), and
+        // seconds_since_epoch will pass S32_MAX in 2038. Fall back to keeping
+        // the raw text, which is what the consumers of exactly these fields
+        // already expect -- llstartup.cpp reads circuit_code with asString()
+        // and strtoul(), so a string here is not a downgrade.
+        const std::string contents = childp->getTextContents();
+        try
+        {
+            target.assign(std::stoi(contents));
+        }
+        catch (const std::out_of_range&)
+        {
+            LL_WARNS() << "XML-RPC <" << childp->mName->mString << "> value '"
+                       << contents << "' does not fit in a 32-bit int;"
+                       << " keeping it as a string" << LL_ENDL;
+            std::string trimmed(contents);
+            LLStringUtil::trim(trimmed);
+            target.assign(trimmed);
+        }
+        catch (const std::invalid_argument&)
+        {
+            LL_WARNS() << "XML-RPC <" << childp->mName->mString << "> value '"
+                       << contents << "' is not a number" << LL_ENDL;
+            return false;
+        }
+        // </FS:Test>
         return true;
     }
 
     if (childp->hasName("double"))
     {
-        target.assign(std::stod(childp->getTextContents()));
+        // <FS:Test> as above: std::stod throws on malformed input.
+        const std::string contents = childp->getTextContents();
+        try
+        {
+            target.assign(std::stod(contents));
+        }
+        catch (const std::exception&)
+        {
+            LL_WARNS() << "XML-RPC <double> value '" << contents
+                       << "' is not a number" << LL_ENDL;
+            return false;
+        }
+        // </FS:Test>
         return true;
     }
 
