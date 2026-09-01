@@ -54,8 +54,9 @@ LLViewerWindowListener::LLViewerWindowListener(LLViewerWindow* llviewerwindow):
 //  saveSnapshotArgs["rebuild"] = LLSD::Boolean();
 //  saveSnapshotArgs["type"] = LLSD::String();
     add("saveSnapshot",
-        "Save screenshot: [\"filename\"], [\"width\"], [\"height\"], [\"showui\"], [\"showhud\"], [\"rebuild\"], [\"type\"]\n"
+        "Save screenshot: [\"filename\"], [\"width\"], [\"height\"], [\"showui\"], [\"showhud\"], [\"rebuild\"], [\"type\"], [\"format\"], [\"showbalance\"]\n"
         "type: \"COLOR\", \"DEPTH\"\n"
+        "format: \"PNG\", \"JPEG\", \"BMP\" (default \"BMP\", regardless of the filename extension)\n"
         "Post on [\"reply\"] an event containing [\"ok\"]",
         &LLViewerWindowListener::saveSnapshot,
         saveSnapshotArgs);
@@ -100,7 +101,35 @@ void LLViewerWindowListener::saveSnapshot(const LLSD& event) const
         }
         type = found->second;
     }
-    bool ok = mViewerWindow->saveSnapshot(event["filename"], width, height, showui, showhud, rebuild, true /*L$ Balance*/, type);
+    // <FS:Test> Let a caller ask for PNG. Without this the format argument is
+    // never passed, so saveSnapshot takes its BMP default and writes a BMP no
+    // matter what the filename says.
+    typedef std::map<LLSD::String, LLSnapshotModel::ESnapshotFormat> FormatMap;
+    FormatMap formats;
+    formats["PNG"]  = LLSnapshotModel::SNAPSHOT_FORMAT_PNG;
+    formats["JPEG"] = LLSnapshotModel::SNAPSHOT_FORMAT_JPEG;
+    formats["BMP"]  = LLSnapshotModel::SNAPSHOT_FORMAT_BMP;
+    LLSnapshotModel::ESnapshotFormat format(LLSnapshotModel::SNAPSHOT_FORMAT_BMP);
+    if (event.has("format"))
+    {
+        FormatMap::const_iterator found = formats.find(event["format"]);
+        if (found == formats.end())
+        {
+            LL_ERRS("LLViewerWindowListener") << "LLViewerWindowListener::saveSnapshot(): "
+                                              << "unrecognized format " << event["format"] << LL_ENDL;
+            return;
+        }
+        format = found->second;
+    }
+    // The L$ balance overlay would otherwise be burned into every frame.
+    bool showbalance = true;
+    if (event.has("showbalance"))
+    {
+        showbalance = event["showbalance"].asBoolean();
+    }
+    // </FS:Test>
+
+    bool ok = mViewerWindow->saveSnapshot(event["filename"], width, height, showui, showhud, rebuild, showbalance, type, format);
     sendReply(LLSDMap("ok", ok), event);
 }
 

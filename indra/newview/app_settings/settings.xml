@@ -3454,6 +3454,87 @@
       <key>Value</key>
       <string />
     </map>
+    <!-- <FS:Test> FSTestHarness: unattended capture runs. Every one of these is
+         command-line only and never persisted, so a test run cannot leave the
+         viewer armed for the next interactive session. See fstestharness.h. -->
+    <key>FSTestCredentialsFile</key>
+    <map>
+      <key>Comment</key>
+      <string>Test harness: TOML credentials file (sl-client format) to log in from.</string>
+      <key>Persist</key>
+      <integer>0</integer>
+      <key>Type</key>
+      <string>String</string>
+      <key>Value</key>
+      <string />
+    </map>
+    <key>FSTestAvatarKey</key>
+    <map>
+      <key>Comment</key>
+      <string>Test harness: which [avatars.KEY] entry of the credentials file to log in as.</string>
+      <key>Persist</key>
+      <integer>0</integer>
+      <key>Type</key>
+      <string>String</string>
+      <key>Value</key>
+      <string />
+    </map>
+    <key>FSTestGridFile</key>
+    <map>
+      <key>Comment</key>
+      <string>Test harness: TOML file describing the grid to log into.</string>
+      <key>Persist</key>
+      <integer>0</integer>
+      <key>Type</key>
+      <string>String</string>
+      <key>Value</key>
+      <string />
+    </map>
+    <key>FSTestScreenshotDir</key>
+    <map>
+      <key>Comment</key>
+      <string>Test harness: directory to capture frame_NNN.png into. Setting this enables capture mode.</string>
+      <key>Persist</key>
+      <integer>0</integer>
+      <key>Type</key>
+      <string>String</string>
+      <key>Value</key>
+      <string />
+    </map>
+    <key>FSTestSceneDump</key>
+    <map>
+      <key>Comment</key>
+      <string>Test harness: path for the structured JSON scene dump.</string>
+      <key>Persist</key>
+      <integer>0</integer>
+      <key>Type</key>
+      <string>String</string>
+      <key>Value</key>
+      <string />
+    </map>
+    <key>FSTestCameraPosition</key>
+    <map>
+      <key>Comment</key>
+      <string>Test harness: camera position as region-local "x,y,z".</string>
+      <key>Persist</key>
+      <integer>0</integer>
+      <key>Type</key>
+      <string>String</string>
+      <key>Value</key>
+      <string />
+    </map>
+    <key>FSTestCameraLookAt</key>
+    <map>
+      <key>Comment</key>
+      <string>Test harness: camera aim point as region-local "x,y,z".</string>
+      <key>Persist</key>
+      <integer>0</integer>
+      <key>Type</key>
+      <string>String</string>
+      <key>Value</key>
+      <string />
+    </map>
+    <!-- </FS:Test> -->
     <key>CmdLineHelperURI</key>
     <map>
       <key>Comment</key>
