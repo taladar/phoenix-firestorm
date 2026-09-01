@@ -1331,7 +1331,23 @@ void LLPanelPlaces::showAddedLandmarkInfo(const uuid_set_t& items)
 
         LLInventoryItem* item = gInventory.getItem(item_id);
 
-        llassert(item);
+        // <FS:Test> These ids arrive from a server-driven inventory-changed
+        // callback, so an id the local model has not got is a grid/viewer
+        // disagreement, not a programming error here -- and a fatal assert on
+        // it lets any grid kill the viewer during login. The line below
+        // already handles a null item; the assert was strictly stronger than
+        // the code it guarded. Observed against a fake grid whose login
+        // skeleton reported "My Inventory" at version -1 while AIS reported
+        // version 8.
+        //llassert(item);
+        if (!item)
+        {
+            LL_WARNS("Places") << "inventory-changed callback named item "
+                               << item_id << " which is not in the inventory"
+                               << " model; ignoring" << LL_ENDL;
+            continue;
+        }
+        // </FS:Test>
         if (item && (LLAssetType::AT_LANDMARK == item->getType()) )
         {
             // Created landmark is passed to Places panel to allow its editing.
