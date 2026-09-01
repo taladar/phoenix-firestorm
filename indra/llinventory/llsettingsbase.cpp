@@ -31,6 +31,7 @@
 
 #include "llmath.h"
 #include <algorithm>
+#include <cmath> // std::isnan; GCC 16 no longer provides it transitively
 
 #include "llsdserialize.h"
 #include <boost/bind.hpp>
