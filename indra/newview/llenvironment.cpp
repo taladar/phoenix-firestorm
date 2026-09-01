@@ -31,6 +31,7 @@
 #include <algorithm>
 
 #include "llagent.h"
+#include "llenvironmentlistener.h" // <FS:Test> LLEnvironment event API
 #include "llviewercontrol.h" // for gSavedSettings
 #include "llviewerregion.h"
 #include "llviewernetwork.h" // <FS:Beq/> for LLGridManager
@@ -854,6 +855,11 @@ std::string env_selection_to_string(LLEnvironment::EnvSelection_t sel)
     }
 #undef RTNENUM
 }
+
+// <FS:Test> EventHost API LLEnvironment listener -- scripted time of day, for
+// --leap plugins and the unattended capture harness.
+static LLEnvironmentListener sEnvironmentListener;
+// </FS:Test>
 
 //-------------------------------------------------------------------------
 LLEnvironment::LLEnvironment():

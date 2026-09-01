@@ -188,6 +188,10 @@ set(viewer_SOURCE_FILES
     fsscriptlibrary.cpp
     fsscrolllistctrl.cpp
     fsslurlcommand.cpp
+    fstestconfig.cpp
+    fstestharness.cpp
+    fstestquiesce.cpp
+    fstestscenedump.cpp
     fsvirtualtrackpad.cpp
     fsworldmapmessage.cpp
     lggbeamcolormapfloater.cpp
@@ -304,6 +308,7 @@ set(viewer_SOURCE_FILES
     lldynamictexture.cpp
     llemote.cpp
     llenvironment.cpp
+    llenvironmentlistener.cpp
     llestateinfomodel.cpp
     lleventnotifier.cpp
     lleventpoll.cpp
@@ -1061,6 +1066,10 @@ set(viewer_HEADER_FILES
     fsscrolllistctrl.h
     fsslurl.h
     fsslurlcommand.h
+    fstestconfig.h
+    fstestharness.h
+    fstestquiesce.h
+    fstestscenedump.h
     fsvirtualtrackpad.h
     fsworldmapmessage.h
     lggbeamcolormapfloater.h
@@ -1179,6 +1188,7 @@ set(viewer_HEADER_FILES
     lldynamictexture.h
     llemote.h
     llenvironment.h
+    llenvironmentlistener.h
     llestateinfomodel.h
     lleventnotifier.h
     lleventpoll.h
