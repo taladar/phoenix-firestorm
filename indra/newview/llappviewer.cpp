@@ -300,6 +300,7 @@ using namespace LL;
 #include "aoengine.h"
 #include "fsradar.h"
 #include "fsassetblacklist.h"
+#include "fstestharness.h" // <FS:Test> unattended capture runs
 #include "bugsplatattributes.h"
 
 #if LL_LINUX && LL_GTK
@@ -3269,6 +3270,16 @@ bool LLAppViewer::initConfiguration()
         return false;
     }
 
+    // <FS:Test> Arm the unattended capture harness, if any of its options or
+    // SL_VIEWER_* environment variables are present. This has to run after
+    // clp.notify() -- that is when command line values reach gSavedSettings --
+    // and before the grid is chosen, because it may set CmdLineGridChoice and
+    // UserLoginInfoCmdLine from the credentials/grid files. It runs before the
+    // --set block below so an explicit --set still wins over the determinism
+    // defaults the harness applies. No-op in an ordinary session.
+    FSTestHarness::instance().initFromCommandLine();
+    // </FS:Test>
+
     // Register the core crash option as soon as we can
     // if we want gdb post-mortem on cores we need to be up and running
     // ASAP or we might miss init issue etc.
@@ -5936,6 +5947,13 @@ void LLAppViewer::idle()
     // Global frame timer
     // Smoothly weight toward current frame
     gFPSClamped = (frame_rate_clamped + (4.f * gFPSClamped)) / 5.f;
+
+    // <FS:Test> Drive the unattended capture harness. No-op unless armed.
+    // Deliberately ahead of QuitAfterSeconds: the harness exits through a real
+    // logout, while QuitAfterSeconds below calls forceQuit(), which sends no
+    // LogoutRequest and leaves the session stranded on the simulator.
+    FSTestHarness::instance().tick();
+    // </FS:Test>
 
     static LLCachedControl<F32> quitAfterSeconds(gSavedSettings, "QuitAfterSeconds");
     F32 qas = (F32)quitAfterSeconds;

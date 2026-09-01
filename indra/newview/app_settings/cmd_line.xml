@@ -18,6 +18,37 @@
       <string>AutoLogin</string>
     </map>
 
+    <!-- FSTestHarness: unattended capture runs. See fstestharness.h. -->
+    <key>avatar</key>
+    <map>
+      <key>desc</key>
+      <string>Test harness: which [avatars.KEY] entry of the credentials file to log in as.</string>
+      <key>count</key>
+      <integer>1</integer>
+      <key>map-to</key>
+      <string>FSTestAvatarKey</string>
+    </map>
+
+    <key>camera-look-at</key>
+    <map>
+      <key>desc</key>
+      <string>Test harness: aim the camera at region-local "x,y,z" (needs --camera-position).</string>
+      <key>count</key>
+      <integer>1</integer>
+      <key>map-to</key>
+      <string>FSTestCameraLookAt</string>
+    </map>
+
+    <key>camera-position</key>
+    <map>
+      <key>desc</key>
+      <string>Test harness: place the camera at region-local "x,y,z".</string>
+      <key>count</key>
+      <integer>1</integer>
+      <key>map-to</key>
+      <string>FSTestCameraPosition</string>
+    </map>
+
     <key>channel</key>
     <map>
       <key>count</key>
@@ -50,6 +81,16 @@
       <string>Crashes on startup. For QA use.</string>
       <key>map-to</key>
       <string>CrashOnStartup</string>
+    </map>
+
+    <key>credentials</key>
+    <map>
+      <key>desc</key>
+      <string>Test harness: TOML credentials file (sl-client format) to log in from.</string>
+      <key>count</key>
+      <integer>1</integer>
+      <key>map-to</key>
+      <string>FSTestCredentialsFile</string>
     </map>
 
     <key>debugsession</key>
@@ -109,6 +150,16 @@
       <integer>1</integer>
       <key>map-to</key>
       <string>CmdLineGridChoice</string>
+    </map>
+
+    <key>gridfile</key>
+    <map>
+      <key>desc</key>
+      <string>Test harness: TOML file describing the grid to log into (login_uri, optional gridname/gridnick).</string>
+      <key>count</key>
+      <integer>1</integer>
+      <key>map-to</key>
+      <string>FSTestGridFile</string>
     </map>
 
     <key>update-service</key>
@@ -360,6 +411,26 @@
       <string>Reset preferences, run in safe mode.</string>
       <key>map-to</key>
       <string>SafeMode</string>
+    </map>
+
+    <key>scene-dump</key>
+    <map>
+      <key>desc</key>
+      <string>Test harness: write a structured JSON scene dump to this path (default &lt;screenshot-dir&gt;/scene.json).</string>
+      <key>count</key>
+      <integer>1</integer>
+      <key>map-to</key>
+      <string>FSTestSceneDump</string>
+    </map>
+
+    <key>screenshot-dir</key>
+    <map>
+      <key>desc</key>
+      <string>Test harness: capture frame_NNN.png into this directory once the scene settles, then log out.</string>
+      <key>count</key>
+      <integer>1</integer>
+      <key>map-to</key>
+      <string>FSTestScreenshotDir</string>
     </map>
 
     <key>sessionsettings</key>
