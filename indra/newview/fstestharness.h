@@ -166,6 +166,14 @@ private:
     bool        mHaveDayPosition = false;
     F32         mDayPosition = 0.f;
 
+    /// A vertical field of view pinned for the run (SL_VIEWER_CAPTURE_FOV, in
+    /// degrees on the way in, radians here), or none to keep the viewer's own.
+    /// sl-client reads the same variable, so one env block aims both lenses --
+    /// which matters because a comparison whose framing rests on two viewers'
+    /// defaults agreeing is one with an unstated premise.
+    bool        mHaveFieldOfView = false;
+    F32         mFieldOfView = 0.f;
+
     /// The pixel grid every captured frame is rendered at, independent of
     /// whatever size the window ends up being (see captureFrame). Defaults to
     /// 1080p rather than to "whatever the window is": a capture harness whose
