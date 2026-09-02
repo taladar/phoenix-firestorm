@@ -96,6 +96,8 @@ private:
     void tickShutdown();
 
     /// Put the camera exactly where it was asked to be. Re-applied per frame.
+    /// Closes the floaters login restored and blocks new ones for the run.
+    void closeFloaters();
     void applyCamera();
     /// Pin the sun, so a run does not drift between its first and last frame.
     void applyEnvironment();
@@ -147,8 +149,19 @@ private:
     bool        mHaveDayPosition = false;
     F32         mDayPosition = 0.f;
 
-    S32         mWindowWidth = 0;   ///< 0 = leave the window alone
-    S32         mWindowHeight = 0;
+    /// The pixel grid every captured frame is rendered at, independent of
+    /// whatever size the window ends up being (see captureFrame). Defaults to
+    /// 1080p rather than to "whatever the window is": a capture harness whose
+    /// resolution is decided by the window manager produces frames that cannot
+    /// be compared with the other viewer's, or even with each other.
+    /// 1080p. Big enough that fine detail -- texture banding, a mesh LOD
+    /// swap, an alpha-sorting seam -- survives into the frame, which is the
+    /// whole point of comparing the images at all.
+    static constexpr S32 DEFAULT_CAPTURE_WIDTH  = 1920;
+    static constexpr S32 DEFAULT_CAPTURE_HEIGHT = 1080;
+
+    S32         mWindowWidth = DEFAULT_CAPTURE_WIDTH;
+    S32         mWindowHeight = DEFAULT_CAPTURE_HEIGHT;
 
     F32         mSettleTimeout = 25.f;  ///< SL_VIEWER_SCREENSHOT_DELAY
     F32         mFrameInterval = 0.5f;  ///< SL_VIEWER_SCREENSHOT_INTERVAL

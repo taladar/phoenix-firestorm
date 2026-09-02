@@ -50,6 +50,8 @@
 #include "llviewerregion.h"
 #include "llviewerwindow.h"
 #include "llsnapshotmodel.h"
+#include "llfloaterreg.h"
+#include "llfloater.h"
 
 namespace
 {
@@ -293,8 +295,10 @@ void FSTestHarness::initFromCommandLine()
         mActive = true;
     }
 
-    // Window size: "WxH". Both viewers must render the same pixel grid or the
-    // images are not comparable at all.
+    // Capture size: "WxH". Both viewers must render the same pixel grid or the
+    // images are not comparable at all, so this has a real default
+    // (DEFAULT_CAPTURE_WIDTH x ..._HEIGHT) rather than falling back to the
+    // window's size -- see mWindowWidth.
     const std::string window_size = envString("SL_VIEWER_WINDOW_SIZE");
     if (!window_size.empty())
     {
@@ -503,6 +507,7 @@ void FSTestHarness::tickWaitLogin()
                               << mStateTimer.getElapsedTimeF32() << "s" << LL_ENDL;
 
     applyWindowSize();
+    closeFloaters();
 
     mState = STATE_SETTLE;
     mResultReason = "scene never settled";
@@ -647,8 +652,54 @@ void FSTestHarness::applyWindowSize()
         return;
     }
     gViewerWindow->reshape(mWindowWidth, mWindowHeight);
-    LL_INFOS("FSTestHarness") << "window resized to "
-                              << mWindowWidth << 'x' << mWindowHeight << LL_ENDL;
+
+    // Report what we actually got, not what we asked for. The request can be
+    // refused outright (a tiling window manager sizes its own windows) and the
+    // old unconditional "resized to WxH" made a refused run look identical to
+    // a successful one in the log. Captures no longer depend on this
+    // succeeding -- see captureFrame -- so a mismatch is a note, not an error.
+    const S32 got_width  = gViewerWindow->getWindowWidthRaw();
+    const S32 got_height = gViewerWindow->getWindowHeightRaw();
+    if (got_width == mWindowWidth && got_height == mWindowHeight)
+    {
+        LL_INFOS("FSTestHarness") << "window resized to "
+                                  << mWindowWidth << 'x' << mWindowHeight << LL_ENDL;
+    }
+    else
+    {
+        LL_INFOS("FSTestHarness") << "window is " << got_width << 'x' << got_height
+                                  << "; asked for " << mWindowWidth << 'x' << mWindowHeight
+                                  << " and the window manager declined. Frames are still"
+                                     " captured at the requested size." << LL_ENDL;
+    }
+}
+
+void FSTestHarness::closeFloaters()
+{
+    // Firestorm restores its docked floaters on login -- Conversations
+    // (floater_im_box) among them -- and they sit over the 3D view.
+    //
+    // The captured frames do not contain them: captureFrame passes
+    // show_ui = false, so the snapshot re-renders the world with no UI at
+    // all. This is therefore not about the comparison output. It is about
+    // (a) being able to watch a run and see the scene rather than a stack of
+    // panels, and (b) the floaters that *do* reach into the 3D render --
+    // the build tools draw selection outlines and beacons into the world,
+    // not into the UI layer, so those would survive show_ui = false and land
+    // in the frames.
+    //
+    // Close what login opened, then stop anything else opening for the rest
+    // of the run: a notification or an inventory offer arriving mid-capture
+    // would otherwise pop a floater between two frames of one sequence.
+    if (gFloaterView)
+    {
+        gFloaterView->closeAllChildren(/*app_quitting*/ false);
+    }
+    LLFloaterReg::hideVisibleInstances();
+    LLFloaterReg::blockShowFloaters(true);
+
+    LL_INFOS("FSTestHarness") << "closed open floaters and blocked new ones"
+                              << LL_ENDL;
 }
 
 void FSTestHarness::applyCamera()
@@ -761,8 +812,19 @@ bool FSTestHarness::captureFrame(S32 index)
     const std::string filename =
         gDirUtilp->add(mScreenshotDir, llformat("frame_%03d.png", index));
 
-    const S32 width  = gViewerWindow->getWindowWidthRaw();
-    const S32 height = gViewerWindow->getWindowHeightRaw();
+    // The pinned capture size, NOT the window's. The two are deliberately
+    // independent: reshape() below is only a *request* to the window manager,
+    // and a tiling compositor answers it with a configure event carrying its
+    // own size -- which arrives through SDL as an ordinary resize and lands in
+    // LLViewerWindow::reshape, overwriting ours. Observed mid-run, between
+    // frame_000 and frame_001 of one capture sequence, when the window lost
+    // focus. Sizing the snapshot from the window therefore means the window
+    // manager picks the resolution, and can change it partway through a
+    // sequence. saveSnapshot takes an explicit size and honours it as long as
+    // the UI is not drawn (llviewerwindow.cpp:6208 clamps to the window only
+    // when show_ui is set, and it is not, below).
+    const S32 width  = mWindowWidth;
+    const S32 height = mWindowHeight;
 
     // Explicit PNG: saveSnapshot defaults to BMP regardless of the extension.
     const bool ok = gViewerWindow->saveSnapshot(filename, width, height,
