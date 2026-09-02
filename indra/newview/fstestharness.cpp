@@ -46,6 +46,7 @@
 #include "llenvironment.h"
 #include "llsettingssky.h"
 #include "llstartup.h"
+#include "llviewercamera.h"
 #include "llviewercontrol.h"
 #include "llviewerregion.h"
 #include "llviewerwindow.h"
@@ -366,6 +367,20 @@ void FSTestHarness::initFromCommandLine()
     if (envBool("SL_VIEWER_CAPTURE_GIZMOS", mCaptureGizmos) && mCaptureGizmos)
     {
         mActive = true;
+    }
+
+    // The lens, in degrees, so a run states its framing rather than resting on
+    // two viewers' defaults agreeing. They do agree -- both default to
+    // DEFAULT_FIELD_OF_VIEW (60 degrees) -- but sl-client's used to be 45, and
+    // the first cross-check that put both cameras at one pose framed five prims
+    // of a fixture row here and three there before anyone noticed the lens.
+    F32 fov_degrees = 0.f;
+    if (envF32("SL_VIEWER_CAPTURE_FOV", fov_degrees) && fov_degrees > 0.f)
+    {
+        mHaveFieldOfView = true;
+        mFieldOfView = fov_degrees * DEG_TO_RAD;
+        LL_INFOS("FSTestHarness") << "field of view pinned to " << fov_degrees
+                                  << " degrees" << LL_ENDL;
     }
 
     envF32("SL_VIEWER_SCREENSHOT_DELAY", mSettleTimeout);
@@ -849,6 +864,20 @@ void FSTestHarness::applyCamera()
     gAgentCamera.setFocusOnAvatar(false, false);
     gAgentCamera.setCameraPosAndFocusGlobal(pos_global, focus_global, LLUUID::null);
     gAgentCamera.stopCameraAnimation();
+
+    // The lens, re-asserted with the pose: setDefaultFOV clamps to the
+    // aspect-dependent bounds itself (LLCamera::getMinView / getMaxView), and
+    // the setting is forced non-persistently because CameraAngle is Persist=1
+    // and a harness run must not edit the user's preferences.
+    if (mHaveFieldOfView)
+    {
+        LLViewerCamera* camera = LLViewerCamera::getInstance();
+        if (camera && fabsf(camera->getDefaultFOV() - mFieldOfView) > 1e-4f)
+        {
+            forceSetting("CameraAngle", mFieldOfView);
+            camera->setDefaultFOV(mFieldOfView);
+        }
+    }
 }
 
 void FSTestHarness::applyEnvironment()
