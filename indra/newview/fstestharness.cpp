@@ -52,6 +52,7 @@
 #include "llsnapshotmodel.h"
 #include "llfloaterreg.h"
 #include "llfloater.h"
+#include "pipeline.h"
 
 namespace
 {
@@ -106,6 +107,23 @@ namespace
                                       << "' -- ignored" << LL_ENDL;
             return false;
         }
+    }
+
+    /**
+     * A boolean environment variable, with sl-client's own falsey set so that
+     * one env block means the same thing to both viewers: unset, empty, "0",
+     * "false", "no" and "off" are false; anything else is true.
+     */
+    bool envBool(const char* name, bool& out)
+    {
+        std::string raw = envString(name);
+        if (raw.empty())
+        {
+            return false;
+        }
+        LLStringUtil::toLower(raw);
+        out = !(raw == "0" || raw == "false" || raw == "no" || raw == "off");
+        return true;
     }
 
     /**
@@ -298,30 +316,56 @@ void FSTestHarness::initFromCommandLine()
     // Capture size: "WxH". Both viewers must render the same pixel grid or the
     // images are not comparable at all, so this has a real default
     // (DEFAULT_CAPTURE_WIDTH x ..._HEIGHT) rather than falling back to the
-    // window's size -- see mWindowWidth.
-    const std::string window_size = envString("SL_VIEWER_WINDOW_SIZE");
-    if (!window_size.empty())
+    // window's size -- see mCaptureWidth.
+    const std::string capture_size = envString("SL_VIEWER_CAPTURE_SIZE");
+    if (!capture_size.empty())
     {
-        const size_t x = window_size.find_first_of("xX");
+        const size_t x = capture_size.find_first_of("xX");
         if (x != std::string::npos)
         {
             try
             {
-                mWindowWidth  = (S32)std::stol(window_size.substr(0, x));
-                mWindowHeight = (S32)std::stol(window_size.substr(x + 1));
+                mCaptureWidth  = (S32)std::stol(capture_size.substr(0, x));
+                mCaptureHeight = (S32)std::stol(capture_size.substr(x + 1));
                 mActive = true;
             }
             catch (const std::exception&)
             {
-                mWindowWidth = mWindowHeight = 0;
+                mCaptureWidth = mCaptureHeight = 0;
             }
         }
-        if (mWindowWidth <= 0 || mWindowHeight <= 0)
+        if (mCaptureWidth <= 0 || mCaptureHeight <= 0)
         {
-            LL_ERRS("FSTestHarness") << "SL_VIEWER_WINDOW_SIZE: expected 'WxH', got '"
-                                     << window_size << '\'' << LL_ENDL;
+            LL_ERRS("FSTestHarness") << "SL_VIEWER_CAPTURE_SIZE: expected 'WxH', got '"
+                                     << capture_size << '\'' << LL_ENDL;
             return;
         }
+    }
+    if (mCaptureWidth % 4 != 0)
+    {
+        // rawSnapshot pads the width up to a multiple of four before it scales
+        // the grab ("image_width += (image_width * 3) % 4", a BMP row-alignment
+        // hack that runs whatever the format), so this frame would come out
+        // wider than sl-client's, which is exact. Say so here rather than
+        // leaving it for whoever tries to diff the pair.
+        LL_WARNS("FSTestHarness") << "a capture width of " << mCaptureWidth
+                                  << " is not a multiple of 4; the snapshot path rounds it up, so"
+                                     " these frames will not match sl-client's" << LL_ENDL;
+    }
+
+    // Which layers of the composited frame the capture holds. Independent of
+    // each other and of the size; all off by default (world only).
+    if (envBool("SL_VIEWER_CAPTURE_UI", mCaptureUi) && mCaptureUi)
+    {
+        mActive = true;
+    }
+    if (envBool("SL_VIEWER_CAPTURE_HUD", mCaptureHud) && mCaptureHud)
+    {
+        mActive = true;
+    }
+    if (envBool("SL_VIEWER_CAPTURE_GIZMOS", mCaptureGizmos) && mCaptureGizmos)
+    {
+        mActive = true;
     }
 
     envF32("SL_VIEWER_SCREENSHOT_DELAY", mSettleTimeout);
@@ -444,11 +488,37 @@ void FSTestHarness::applyDeterminismSettings()
     // Nothing may pop up over the scene.
     forceSetting("IgnoreAllNotifications", true);
 
-    // Snapshots: world only.
-    forceSetting("RenderUIInSnapshot", false);
-    forceSetting("RenderHUDInSnapshot", false);
+    // Snapshots hold the layers this run asked for. captureFrame passes
+    // show_ui / show_hud to saveSnapshot directly; these are the same choice
+    // stated in the settings the rest of the snapshot machinery reads, so the
+    // two cannot disagree.
+    forceSetting("RenderUIInSnapshot", mCaptureUi);
+    forceSetting("RenderHUDInSnapshot", mCaptureHud);
+    // Never the balance: it is account state, not rendering, and it differs
+    // between the two viewers' test accounts for reasons no comparison cares
+    // about.
     forceSetting("RenderBalanceInSnapshot", false);
     forceSetting("HighResSnapshot", false);
+
+    // The editor overlays that draw into the *world* pass rather than the UI
+    // layer -- selection silhouettes, highlights and beacons -- are this
+    // viewer's answer to sl-client's gizmo overlay, and survive show_ui =
+    // false. Forced off unless the run asked for them, so a stray selection or
+    // a saved beacon setting cannot put a coloured line through one viewer's
+    // frames and not the other's. When they *are* asked for, nothing is forced:
+    // the run wants what the viewer would draw.
+    if (!mCaptureGizmos)
+    {
+        forceSetting("RenderHighlightSelections", false);
+        forceSetting("renderhighlights", false);
+        forceSetting("renderbeacons", false);
+        forceSetting("scriptsbeacon", false);
+        forceSetting("scripttouchbeacon", false);
+        forceSetting("physicalbeacon", false);
+        forceSetting("soundsbeacon", false);
+        forceSetting("particlesbeacon", false);
+        LLPipeline::sRenderHighlight = false;
+    }
 
     // Audio and voice are pure noise in a screenshot run, and voice in
     // particular spawns a helper process per instance.
@@ -665,31 +735,46 @@ void FSTestHarness::finish(bool ok, const std::string& reason)
 
 void FSTestHarness::applyWindowSize()
 {
-    if (mWindowWidth <= 0 || mWindowHeight <= 0 || !gViewerWindow)
+    if (mCaptureWidth <= 0 || mCaptureHeight <= 0 || !gViewerWindow)
     {
         return;
     }
-    gViewerWindow->reshape(mWindowWidth, mWindowHeight);
+    if (!mCaptureUi)
+    {
+        // A world-only capture renders into its own scratch target at the
+        // pinned size, so the window's size does not enter the frame at all.
+        // Shrinking it would only make the run harder to watch.
+        return;
+    }
+
+    gViewerWindow->reshape(mCaptureWidth, mCaptureHeight);
 
     // Report what we actually got, not what we asked for. The request can be
     // refused outright (a tiling window manager sizes its own windows) and the
     // old unconditional "resized to WxH" made a refused run look identical to
-    // a successful one in the log. Captures no longer depend on this
-    // succeeding -- see captureFrame -- so a mismatch is a note, not an error.
+    // a successful one in the log.
     const S32 got_width  = gViewerWindow->getWindowWidthRaw();
     const S32 got_height = gViewerWindow->getWindowHeightRaw();
-    if (got_width == mWindowWidth && got_height == mWindowHeight)
+    if (got_width == mCaptureWidth && got_height == mCaptureHeight)
     {
         LL_INFOS("FSTestHarness") << "window resized to "
-                                  << mWindowWidth << 'x' << mWindowHeight << LL_ENDL;
+                                  << mCaptureWidth << 'x' << mCaptureHeight << LL_ENDL;
+        return;
     }
-    else
-    {
-        LL_INFOS("FSTestHarness") << "window is " << got_width << 'x' << got_height
-                                  << "; asked for " << mWindowWidth << 'x' << mWindowHeight
-                                  << " and the window manager declined. Frames are still"
-                                     " captured at the requested size." << LL_ENDL;
-    }
+
+    // The UI is the one layer whose *size* still depends on the window: the
+    // snapshot path clamps the requested size to the window and scales the grab
+    // down to it, because it cannot draw the UI at any other size. The frame is
+    // still mCaptureWidth x mCaptureHeight, but its UI is this window's UI
+    // scaled -- which sl-client's, laid out at the capture size, will not
+    // match. A note rather than an error: the world in the same frame is
+    // unaffected, and only a UI comparison is spoiled.
+    LL_WARNS("FSTestHarness") << "window is " << got_width << 'x' << got_height
+                              << "; asked for " << mCaptureWidth << 'x' << mCaptureHeight
+                              << " and the window manager declined. The frames are still"
+                                 " captured at the requested size, but a UI capture from a"
+                                 " window of another size is the window's UI scaled to fit,"
+                                 " so do not compare UI detail from this run." << LL_ENDL;
 }
 
 void FSTestHarness::closeFloaters()
@@ -831,23 +916,27 @@ bool FSTestHarness::captureFrame(S32 index)
         gDirUtilp->add(mScreenshotDir, llformat("frame_%03d.png", index));
 
     // The pinned capture size, NOT the window's. The two are deliberately
-    // independent: reshape() below is only a *request* to the window manager,
-    // and a tiling compositor answers it with a configure event carrying its
-    // own size -- which arrives through SDL as an ordinary resize and lands in
-    // LLViewerWindow::reshape, overwriting ours. Observed mid-run, between
-    // frame_000 and frame_001 of one capture sequence, when the window lost
-    // focus. Sizing the snapshot from the window therefore means the window
+    // independent: applyWindowSize's reshape() is only a *request* to the window
+    // manager, and a tiling compositor answers it with a configure event
+    // carrying its own size -- which arrives through SDL as an ordinary resize
+    // and lands in LLViewerWindow::reshape, overwriting ours. Observed mid-run,
+    // between frame_000 and frame_001 of one capture sequence, when the window
+    // lost focus. Sizing the snapshot from the window therefore means the window
     // manager picks the resolution, and can change it partway through a
-    // sequence. saveSnapshot takes an explicit size and honours it as long as
-    // the UI is not drawn (llviewerwindow.cpp:6208 clamps to the window only
-    // when show_ui is set, and it is not, below).
-    const S32 width  = mWindowWidth;
-    const S32 height = mWindowHeight;
+    // sequence. saveSnapshot takes an explicit size and honours it -- with the
+    // one caveat that a UI capture is clamped to the window and scaled to fit
+    // (llviewerwindow.cpp: "Scaling of the UI is currently *not* supported"),
+    // which is why applyWindowSize asks for a matching window in that case and
+    // warns when it does not get one.
+    const S32 width  = mCaptureWidth;
+    const S32 height = mCaptureHeight;
 
     // Explicit PNG: saveSnapshot defaults to BMP regardless of the extension.
+    // The layers are this run's independent choices; the balance never, being
+    // account state rather than rendering.
     const bool ok = gViewerWindow->saveSnapshot(filename, width, height,
-                                                /*show_ui*/   false,
-                                                /*show_hud*/  false,
+                                                /*show_ui*/   mCaptureUi,
+                                                /*show_hud*/  mCaptureHud,
                                                 /*do_rebuild*/false,
                                                 /*show_balance*/ false,
                                                 LLSnapshotModel::SNAPSHOT_TYPE_COLOR,
