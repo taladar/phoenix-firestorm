@@ -453,6 +453,24 @@ void FSTestHarness::applyDeterminismSettings()
     // Audio and voice are pure noise in a screenshot run, and voice in
     // particular spawns a helper process per instance.
     forceSetting("EnableVoiceChat", false);
+
+    // The avatar must hold still, and in particular must not pose itself from
+    // where the *camera* happens to be. These three are the ways it otherwise
+    // moves without anyone asking it to:
+    //
+    // - The look-at animation turns the agent's own head -- and with it the
+    //   neck and shoulders -- towards the camera's focus. With the camera
+    //   forced somewhere by --camera-position/--camera-look-at, that reads in
+    //   the frame as a crouched, craned avatar, and a comparison then measures
+    //   this viewer's head-tracking against the other viewer's camera rather
+    //   than anything either of them rendered.
+    // - The typing animation would start if anything put text in the chat bar.
+    // - Going AFK swaps the whole body into the away pose. The shipped default
+    //   is already 0 (never), but a run must not depend on the operator's
+    //   saved value for whether its avatar is standing or slumped.
+    forceSetting("DisableLookAtAnimation", true);
+    forceSetting("PlayTypingAnim", false);
+    forceSetting("AFKTimeout", 0);
 }
 
 // ---------------------------------------------------------------------------
