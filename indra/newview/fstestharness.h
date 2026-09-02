@@ -119,7 +119,24 @@ private:
      * otherwise land in the log in clear text.
      */
     static void forceSetting(const char* name, const LLSD& value, bool log_value = true);
-    /// Resize the window so both viewers render the same pixel grid.
+    /**
+     * Resize the window to the capture size -- but only for a run that captures
+     * the UI.
+     *
+     * The captured frame's size does not depend on this: captureFrame passes
+     * the pinned size to saveSnapshot. But the reference snapshot path cannot
+     * render the UI at a size other than the window's ("Scaling of the UI is
+     * currently *not* supported", llviewerwindow.cpp), so with show_ui it
+     * clamps the requested size to the window and then *scales* the grab down
+     * to it. A 4K window captured at 1080p therefore yields a half-size UI,
+     * which is not what the other viewer -- whose UI lays out at the capture
+     * size -- will have drawn. Asking the window to be the capture size is the
+     * only lever there is; when the window manager declines, the run says so.
+     *
+     * A world-only run does not resize at all: the snapshot renders into its
+     * own scratch target, so shrinking the window would cost the operator a
+     * watchable run for nothing.
+     */
     void applyWindowSize();
 
     /// Write one frame; returns false if the snapshot failed.
@@ -160,8 +177,25 @@ private:
     static constexpr S32 DEFAULT_CAPTURE_WIDTH  = 1920;
     static constexpr S32 DEFAULT_CAPTURE_HEIGHT = 1080;
 
-    S32         mWindowWidth = DEFAULT_CAPTURE_WIDTH;
-    S32         mWindowHeight = DEFAULT_CAPTURE_HEIGHT;
+    S32         mCaptureWidth = DEFAULT_CAPTURE_WIDTH;   ///< SL_VIEWER_CAPTURE_SIZE
+    S32         mCaptureHeight = DEFAULT_CAPTURE_HEIGHT;
+
+    /**
+     * Which layers of the composited frame the capture holds, each an
+     * independent switch and each independent of the capture size --
+     * SL_VIEWER_CAPTURE_UI / _HUD / _GIZMOS, mirroring sl-client's
+     * --capture-ui / --capture-hud / --capture-gizmos.
+     *
+     * All three default to off, so a frame holds the world alone: that is the
+     * comparison a renderer cross-check is after, and two viewers' interfaces
+     * are not the same interface. They are separate switches rather than one
+     * "chrome" switch because the questions are separate -- *does the other
+     * viewer draw this HUD the same way* is asked with the HUD in the frame and
+     * the UI out of it.
+     */
+    bool        mCaptureUi = false;
+    bool        mCaptureHud = false;
+    bool        mCaptureGizmos = false;
 
     F32         mSettleTimeout = 25.f;  ///< SL_VIEWER_SCREENSHOT_DELAY
     F32         mFrameInterval = 0.5f;  ///< SL_VIEWER_SCREENSHOT_INTERVAL
