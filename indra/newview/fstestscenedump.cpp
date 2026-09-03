@@ -49,6 +49,8 @@
 #include "llviewerobject.h"
 #include "llviewerobjectlist.h"
 #include "llviewerregion.h"
+#include "llmotion.h"
+#include "llmotioncontroller.h"
 #include "llvoavatar.h"
 #include "llvovolume.h"
 #include "fsgridhandler.h"
@@ -243,6 +245,69 @@ namespace
         return objects;
     }
 
+    /** Where a motion's clock has reached inside the motion itself: wrapped by
+        its duration when it loops, clamped to it when it plays once, and absent
+        when the duration is unknown. This is the "which frame" of an animation,
+        and the number two viewers can be compared on -- `time` runs from
+        whenever each of them started playing. */
+    bool loopTime(F32 time, F32 duration, bool looping, F32& out)
+    {
+        if (duration <= 0.f)
+        {
+            return false;
+        }
+        const F32 elapsed = llmax(time, 0.f);
+        out = looping ? fmodf(elapsed, duration) : llmin(elapsed, duration);
+        return true;
+    }
+
+    /** What one avatar is playing, in the order the viewer applies it.
+
+        mActiveMotions is front-inserted on activation, so this list runs most
+        recently started first -- which is half of what decides who owns a joint
+        (priority is the other half), and why the order is reported rather than
+        sorted into something tidier. */
+    LLSD buildAnimations(LLVOAvatar* avatar)
+    {
+        LLSD animations = LLSD::emptyArray();
+        LLMotionController& controller = avatar->getMotionController();
+        const F32 now = controller.getAnimTime();
+        for (LLMotion* motion : controller.getActiveMotions())
+        {
+            if (!motion)
+            {
+                continue;
+            }
+            LLSD entry = LLSD::emptyMap();
+            entry["id"] = motion->getID();
+            const F32 time = now - motion->getActivationTimestamp();
+            entry["time"] = time;
+            const F32 duration = motion->getDuration();
+            const bool looping = motion->getLoop();
+            if (duration > 0.f)
+            {
+                entry["duration"] = duration;
+                F32 wrapped = 0.f;
+                if (loopTime(time, duration, looping, wrapped))
+                {
+                    entry["loop_time"] = wrapped;
+                }
+            }
+            entry["looping"] = looping;
+            entry["priority"] = (S32)motion->getPriority();
+            entry["stopping"] = motion->isStopped();
+            // The simulator numbers what it asked for; a motion the viewer
+            // started itself carries no number of the simulator's.
+            LLVOAvatar::AnimIterator found = avatar->mPlayingAnimations.find(motion->getID());
+            if (found != avatar->mPlayingAnimations.end())
+            {
+                entry["sequence"] = found->second;
+            }
+            animations.append(entry);
+        }
+        return animations;
+    }
+
     /** Avatars, with the appearance state that explains a grey or bald one. */
     LLSD buildAvatars()
     {
@@ -266,6 +331,7 @@ namespace
             entry["is_control_avatar"] = avatar->isControlAvatar();
             entry["position"]      = ll_sd_from_vector3(avatar->getPositionRegion());
             entry["rotation"]      = ll_sd_from_quaternion(avatar->getRotationRegion());
+            entry["animations"] = buildAnimations(avatar);
             entry["is_fully_loaded"] = avatar->isFullyLoaded();
             entry["visual_complexity"] = (S32)avatar->getVisualComplexity();
             avatars.append(entry);
