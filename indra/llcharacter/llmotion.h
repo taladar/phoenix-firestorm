@@ -89,6 +89,14 @@ public:
 
     F32 getStopTime() const { return mStopTimestamp; }
 
+    // When this motion was activated, on the motion controller's own clock
+    // (LLMotionController::getAnimTime()) -- so getAnimTime() minus this is how
+    // far into the motion playback has reached. Read-only; the controller sets
+    // it. Exposed for FSTestSceneDump, which reports where every playing
+    // animation's clock has got to (flushAllMotions computes the same
+    // difference, but is a friend and reads the member directly).
+    F32 getActivationTimestamp() const { return mActivationTimestamp; }
+
     virtual void setStopTime(F32 time);
 
     bool isStopped() const { return mStopped; }
