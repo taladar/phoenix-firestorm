@@ -35,6 +35,15 @@
 
 LFSimFeatureHandler::LFSimFeatureHandler()
     : mSupportsExport(false),
+    // The region's surface asks for its world-map tile while the region is
+    // being created (LLSurface::createSTexture -> LLWorldMipmap::loadObjectsTile),
+    // which is before setSupportedFeatures() has ever run. Left default-empty,
+    // that first tile URL is built on an empty base and fetched as a hostless
+    // "map-1-<x>-<y>-objects.jpg", which curl reports as "Couldn't resolve host
+    // name" and which the region caches for the rest of the session. The login
+    // response has already been processed by the time this singleton is
+    // constructed, so CurrentMapServerURL is the grid's own answer here.
+    mMapServerURL(gSavedSettings.getString("CurrentMapServerURL")),
     mSayRange(20),
     mShoutRange(100),
     mWhisperRange(10),
