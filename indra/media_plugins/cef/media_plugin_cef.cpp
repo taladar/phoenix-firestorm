@@ -50,6 +50,82 @@
 #include "dullahan.h"
 #include "dullahan_version.h"
 
+#if LL_LINUX
+#include <dlfcn.h>
+
+// Keep Chromium away from the desktop keyring.
+//
+// Chromium's OSCrypt wants a "Chromium Safe Storage" key from the Secret
+// Service, which it uses to encrypt the cookie database at rest. Asking for it
+// unlocks the login keyring, so every viewer start puts an unlock prompt in
+// front of the login screen -- the login screen is itself a CEF page, so this
+// happens before the user has even logged in. Cancelling the prompt is
+// harmless (OSCrypt falls back to a fixed key and cookies still persist), so
+// the prompt is pure noise and we would rather it never appeared.
+//
+// The switch that turns this off is --password-store=basic. As of Chromium
+// 139 it is the *only* thing that turns it off: the async
+// FreedesktopSecretKeyProvider skips the Secret Service when the store is
+// "basic", and its auto-detection sends every non-KDE desktop -- including
+// DESKTOP_ENVIRONMENT_OTHER -- into InitializeFreedesktopSecretService(). So
+// there is no environment variable to set, and nothing in dullahan_settings
+// corresponds to it. (settings.use_mock_keychain, set below under LL_DARWIN,
+// is the macOS counterpart and does nothing here.)
+//
+// We cannot put the switch on the command line either. dullahan hands
+// CefInitialize a zeroed CefMainArgs, and base::CommandLine::Init(0, nullptr)
+// on POSIX has no /proc/self/cmdline fallback, so the browser process starts
+// with an empty command line whatever SLPlugin's own argv says. Both places
+// that could inject it -- CefMainArgs and
+// dullahan_impl::OnBeforeCommandLineProcessing -- are inside the prebuilt
+// libdullahan.a.
+//
+// What is left is the C entry point. libcef.so exports cef_initialize and the
+// statically linked libcef_dll_wrapper references it undefined, so a
+// definition here is preempted into that call: we supply the command line
+// dullahan left empty and forward to the real symbol. The visibility attribute
+// is load-bearing -- this file is compiled -fvisibility=hidden (see the Linux
+// branch of indra/cmake/00-Common.cmake) and a hidden symbol never reaches the
+// dynamic symbol table, so without it the interposition would silently not
+// happen.
+//
+// Only the first argument is inspected, and no CEF header is installed
+// alongside dullahan.h, so we mirror cef_main_args_t here and let the rest of
+// the signature pass through opaquely rather than restate the CEF ABI.
+struct ll_cef_main_args
+{
+    int argc;
+    char** argv;
+};
+
+extern "C" __attribute__((visibility("default")))
+int cef_initialize(const ll_cef_main_args* args, const void* settings,
+                   void* app, void* windows_sandbox_info)
+{
+    static char arg0[] = "SLPlugin";
+    static char arg1[] = "--password-store=basic";
+    static char* injected_argv[] = { arg0, arg1, nullptr };
+
+    ll_cef_main_args patched = { 2, injected_argv };
+    if (args && args->argc > 0)
+    {
+        // Someone gave CEF a real command line after all; leave it alone.
+        patched = *args;
+    }
+
+    using cef_initialize_t = int (*)(const ll_cef_main_args*, const void*, void*, void*);
+    cef_initialize_t real_cef_initialize = (cef_initialize_t)dlsym(RTLD_NEXT, "cef_initialize");
+    if (!real_cef_initialize)
+    {
+        // Cannot happen while libcef.so is loaded, but failing to initialize
+        // is the honest answer if it somehow does.
+        return 0;
+    }
+
+    return real_cef_initialize(&patched, settings, app, windows_sandbox_info);
+}
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 class MediaPluginCEF :
@@ -676,6 +752,11 @@ void MediaPluginCEF::receiveMessage(const char* message_string)
                 settings.disable_gpu = mDisableGPU;
 #if LL_DARWIN
                 settings.disable_network_service = mDisableNetworkService;
+                // Keeps Chromium off the macOS keychain. dullahan turns this
+                // into --use-mock-keychain, which is macOS only; the Linux
+                // equivalent needs --password-store=basic, which has to be
+                // injected further down the stack -- see the cef_initialize
+                // interposer at the top of this file.
                 settings.use_mock_keychain = mUseMockKeyChain;
 #endif
                 // these were added to facilitate loading images directly into a local
