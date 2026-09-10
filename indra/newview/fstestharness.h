@@ -99,7 +99,14 @@ private:
     /// Closes the floaters login restored and blocks new ones for the run.
     void closeFloaters();
     void applyCamera();
-    /// Pin the sun, so a run does not drift between its first and last frame.
+    /**
+     * Pin the sun, so a run does not drift between its first and last frame:
+     * blend the region's day cycle at the requested position and hold the
+     * result as a fixed local sky.
+     *
+     * Records whether the position could be honoured at all -- see
+     * mDayPositionHonoured.
+     */
     void applyEnvironment();
     /**
      * Give the window an app-id distinct from the production viewer's, so a
@@ -165,6 +172,21 @@ private:
 
     bool        mHaveDayPosition = false;
     F32         mDayPosition = 0.f;
+
+    /**
+     * Whether the pinned sun is the sun the *region* puts there -- i.e. whether
+     * the frames are of the scene that was asked for.
+     *
+     * False until applyEnvironment() manages it, and it can fail to: a region
+     * whose day cycle schedules one sky renders that sky at every position, and
+     * a cycle that never arrives cannot be sampled at all. Both leave a run
+     * capturing plausible frames under lighting nobody chose, which is
+     * indistinguishable from success by looking at the directory -- so it is
+     * carried out through harness-status.json and fails the run.
+     */
+    bool        mDayPositionHonoured = false;
+    /// Prose for the status file saying what the pin did or why it could not.
+    std::string mDayPositionDetail;
 
     /// A vertical field of view pinned for the run (SL_VIEWER_CAPTURE_FOV, in
     /// degrees on the way in, radians here), or none to keep the viewer's own.

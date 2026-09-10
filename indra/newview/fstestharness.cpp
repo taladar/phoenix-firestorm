@@ -44,7 +44,9 @@
 #include "llagentcamera.h"
 #include "llappviewer.h"
 #include "llenvironment.h"
+#include "llsettingsdaycycle.h"
 #include "llsettingssky.h"
+#include "llsettingsvo.h"
 #include "llstartup.h"
 #include "llviewercamera.h"
 #include "llviewercontrol.h"
@@ -724,6 +726,19 @@ void FSTestHarness::finish(bool ok, const std::string& reason)
 {
     mResultOk = ok;
     mResultReason = reason;
+    // The frames exist; they are just not frames of the scene that was asked
+    // for. Reporting that as a success invites a person to compare two viewers'
+    // skies when neither of them was told which sky to draw.
+    if (ok && mHaveDayPosition && !mDayPositionHonoured)
+    {
+        std::ostringstream why;
+        why << "the run asked for day position " << mDayPosition << " and did not get it: "
+            << (mDayPositionDetail.empty()
+                    ? std::string("the environment was never applied")
+                    : mDayPositionDetail);
+        mResultOk = false;
+        mResultReason = why.str();
+    }
     writeStatus();
 
     if (ok)
@@ -898,20 +913,45 @@ void FSTestHarness::applyEnvironment()
     {
         // The region's day cycle may not have arrived yet; try again next frame
         // rather than pinning the sky to a default that is not this region's.
+        // A cycle that never arrives is caught by the settle timeout, and
+        // reported below as a pin that could not be honoured.
         return;
     }
 
     // TRACK_GROUND_LEVEL (1) is the ground-level sky track; 0 is water.
-    LLSettingsSky::ptr_t sky =
-        day->getSkyAtKeyframe(mDayPosition, LLSettingsDay::TRACK_GROUND_LEVEL);
-    if (!sky)
+    const LLSettingsDay::CycleTrack_t& track =
+        day->getCycleTrackConst(LLSettingsDay::TRACK_GROUND_LEVEL);
+
+    // A position is a point *along* the track, not a name for one of its
+    // keyframes. getSkyAtKeyframe() answers the second question -- it looks the
+    // position up in the track's map and finds nothing unless a frame sits at
+    // exactly that key -- so it silently declined every position but the ones a
+    // cycle happens to be keyed at, which for a one-keyframe cycle is 0.0 and
+    // nothing else. Blending the bounding pair is what a running viewer does
+    // every frame anyway, and is what the RLV @setenv_daytime path already does
+    // with this same blender.
+    if (track.size() < 2)
     {
-        LL_WARNS("FSTestHarness") << "day cycle has no sky at position "
-                                  << mDayPosition << "; leaving environment alone"
-                                  << LL_ENDL;
+        // One frame (or none) renders the same sky at every position, so there
+        // is no sun to choose here and nothing this viewer can do about it: the
+        // cycle is the region's. Say so, loudly and in the status file -- a
+        // capture whose lighting was not the lighting that was asked for is not
+        // a capture of the requested scene, and it looks exactly like one.
+        std::ostringstream detail;
+        detail << "the region's day cycle schedules " << track.size()
+               << " sky frame(s), so every day position renders the same sky";
+        mDayPositionDetail = detail.str();
+        mDayPositionHonoured = false;
         mEnvironmentApplied = true;
+        LL_WARNS("FSTestHarness") << "day position " << mDayPosition
+                                  << " not honoured: " << mDayPositionDetail << LL_ENDL;
         return;
     }
+
+    LLSettingsSky::ptr_t sky = LLSettingsVOSky::buildDefaultSky();
+    auto blender = std::make_shared<LLTrackBlenderLoopingManual>(
+        sky, day, LLSettingsDay::TRACK_GROUND_LEVEL);
+    blender->setPosition(mDayPosition);
 
     // A fixed sky, not a running cycle: the sun must not move between the
     // first captured frame and the last.
@@ -919,9 +959,14 @@ void FSTestHarness::applyEnvironment()
     env.setSelectedEnvironment(LLEnvironment::ENV_LOCAL, LLEnvironment::TRANSITION_INSTANT);
     env.updateEnvironment(LLEnvironment::TRANSITION_INSTANT, true);
 
+    std::ostringstream detail;
+    detail << "blended the region's day cycle (" << track.size()
+           << " sky keyframes) at " << mDayPosition;
+    mDayPositionDetail = detail.str();
+    mDayPositionHonoured = true;
     mEnvironmentApplied = true;
     LL_INFOS("FSTestHarness") << "sky pinned at day position " << mDayPosition
-                              << LL_ENDL;
+                              << ": " << mDayPositionDetail << LL_ENDL;
 }
 
 // ---------------------------------------------------------------------------
@@ -1015,6 +1060,19 @@ void FSTestHarness::writeStatus() const
     status["frames_written"] = mFramesWritten;
     status["frames_expected"] = mFrameCount;
     status["viewer"]         = "firestorm";
+    // Only when a sun was pinned -- and then always, including when it could
+    // not be honoured, which is the case the key exists for. sl-client writes
+    // the same three sub-keys.
+    if (mHaveDayPosition)
+    {
+        LLSD pinned = LLSD::emptyMap();
+        pinned["requested"] = mDayPosition;
+        pinned["honoured"]  = mDayPositionHonoured;
+        pinned["detail"]    = mDayPositionDetail.empty()
+            ? std::string("the run ended before the environment was applied")
+            : mDayPositionDetail;
+        status["day_position"] = pinned;
+    }
 
     const std::string path = gDirUtilp->add(mScreenshotDir, "harness-status.json");
     std::string error;
