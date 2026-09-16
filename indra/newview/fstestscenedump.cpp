@@ -126,6 +126,65 @@ namespace
         return cam;
     }
 
+    /** The atmospheric inputs the WL sky shaders are actually bound with.
+     *
+     * Two viewers can agree about the sky's name, the sun's direction and every
+     * other thing a dump reports, and still draw very different skies -- because
+     * what the shader runs on is this uniform block, and a dump that does not
+     * carry it cannot say whether a divergence is in the numbers or in the maths.
+     * These are the `skyV.glsl` / `cloudsV.glsl` uniforms, read back through the
+     * same getters `LLSettingsVOSky::applySpecial` and `applyToUniforms` push.
+     */
+    LLSD buildSkyParams(const LLSettingsSky::ptr_t& sky)
+    {
+        LLSD params = LLSD::emptyMap();
+
+        params["sunlight_color"]       = ll_sd_from_vector3(LLVector3(sky->getSunlightColor().mV));
+        params["moonlight_color"]      = ll_sd_from_vector3(LLVector3(sky->getMoonlightColor().mV));
+        params["ambient_color"]        = ll_sd_from_vector3(LLVector3(LLColor3(sky->getTotalAmbient()).mV));
+        params["blue_horizon"]         = ll_sd_from_vector3(LLVector3(sky->getBlueHorizon().mV));
+        params["blue_density"]         = ll_sd_from_vector3(LLVector3(sky->getBlueDensity().mV));
+        params["haze_horizon"]         = sky->getHazeHorizon();
+        params["haze_density"]         = sky->getHazeDensity();
+        params["density_multiplier"]   = sky->getDensityMultiplier();
+        params["distance_multiplier"]  = sky->getDistanceMultiplier();
+        params["max_y"]                = sky->getMaxY();
+        params["gamma"]                = sky->getGamma();
+        params["glow"]                 = ll_sd_from_vector3(LLVector3(sky->getGlow().mV));
+        params["cloud_color"]          = ll_sd_from_vector3(LLVector3(sky->getCloudColor().mV));
+        params["cloud_shadow"]         = sky->getCloudShadow();
+        params["cloud_scale"]          = sky->getCloudScale();
+        params["cloud_variance"]       = sky->getCloudVariance();
+        params["sun_up_factor"]        = sky->getIsSunUp() ? 1.0 : 0.0;
+        params["sun_moon_glow_factor"] = sky->getSunMoonGlowFactor();
+        params["star_brightness"]      = sky->getStarBrightness();
+        params["moisture_level"]       = sky->getSkyMoistureLevel();
+        params["droplet_radius"]       = sky->getSkyDropletRadius();
+        params["ice_level"]            = sky->getSkyIceLevel();
+
+        // The "fake HDR" scale the sky colour is multiplied by after
+        // linearisation (`softenLight`), and the branch that decides it
+        // (`LLSettingsVOSky::applySpecial`): a legacy / classic-mode sky is 1.0,
+        // an EEP sky that authors a probe ambiance is sqrt(gamma) * 2.
+        static LLCachedControl<bool> should_auto_adjust(gSavedSettings, "RenderSkyAutoAdjustLegacy", false);
+        static LLCachedControl<F32> auto_adjust_hdr_scale(gSavedSettings, "RenderSkyAutoAdjustHDRScale", 2.f);
+        const bool classic_mode = sky->canAutoAdjust() && !should_auto_adjust();
+        F32 sky_hdr_scale = 1.f;
+        if (sky->getReflectionProbeAmbiance() != 0.f)
+        {
+            sky_hdr_scale = sqrtf(sky->getGamma()) * 2.f;
+        }
+        else if (sky->canAutoAdjust() && should_auto_adjust())
+        {
+            sky_hdr_scale = auto_adjust_hdr_scale();
+        }
+        params["sky_hdr_scale"]              = sky_hdr_scale;
+        params["reflection_probe_ambiance"]  = sky->getReflectionProbeAmbiance();
+        params["classic_mode"]               = classic_mode;
+
+        return params;
+    }
+
     /** The lighting the frame was rendered under. */
     LLSD buildEnvironment()
     {
@@ -141,6 +200,7 @@ namespace
             env["moon_direction"] = ll_sd_from_vector3(sky->getMoonDirection());
             env["sun_rotation"]   = ll_sd_from_quaternion(sky->getSunRotation());
             env["sky_name"]       = sky->getName();
+            env["sky_params"]     = buildSkyParams(sky);
         }
         if (LLSettingsWater::ptr_t water = environment.getCurrentWater())
         {
