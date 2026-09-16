@@ -370,6 +370,10 @@ void FSTestHarness::initFromCommandLine()
     {
         mActive = true;
     }
+    // Not a layer of the frame, but read beside them: whether the run may make
+    // sound. Off by default. Unlike the layers it does not activate the harness
+    // on its own -- sound in an ordinary session is not the harness's business.
+    envBool("SL_VIEWER_CAPTURE_AUDIO", mCaptureAudio);
 
     // The lens, in degrees, so a run states its framing rather than resting on
     // two viewers' defaults agreeing. They do agree -- both default to
@@ -540,6 +544,14 @@ void FSTestHarness::applyDeterminismSettings()
     // Audio and voice are pure noise in a screenshot run, and voice in
     // particular spawns a helper process per instance.
     forceSetting("EnableVoiceChat", false);
+    // A fixture scene's sound sources loop for the whole run, through the
+    // speakers of whoever is sitting at the machine. Muted unless the run asked
+    // for sound -- non-persistently, like every setting here, so the operator's
+    // own mute state survives the run.
+    if (!mCaptureAudio)
+    {
+        forceSetting("MuteAudio", true);
+    }
 
     // The avatar must hold still, and in particular must not pose itself from
     // where the *camera* happens to be. These three are the ways it otherwise
