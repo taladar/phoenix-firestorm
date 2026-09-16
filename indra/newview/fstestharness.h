@@ -226,6 +226,9 @@ private:
     bool        mCaptureUi = false;
     bool        mCaptureHud = false;
     bool        mCaptureGizmos = false;
+    /// SL_VIEWER_CAPTURE_AUDIO, sl-client's --capture-audio: whether the run
+    /// may make sound. Off by default (MuteAudio forced on for the run).
+    bool        mCaptureAudio = false;
 
     F32         mSettleTimeout = 25.f;  ///< SL_VIEWER_SCREENSHOT_DELAY
     F32         mFrameInterval = 0.5f;  ///< SL_VIEWER_SCREENSHOT_INTERVAL
