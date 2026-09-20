@@ -52,6 +52,9 @@
 #include "llviewercontrol.h"
 #include "llviewerregion.h"
 #include "llviewerwindow.h"
+// llviewerwindow.h only forward-declares LLWindow, and this file calls through
+// it to ask the window system for a size (and to read back what it gave us).
+#include "llwindow.h"
 #include "llsnapshotmodel.h"
 #include "llfloaterreg.h"
 #include "llfloater.h"
@@ -949,6 +952,11 @@ void FSTestHarness::tickSettle()
         return;
     }
 
+    // Before the first frame, and only now: the resize asked for at the top of
+    // the settle is a round trip, and this is the first moment its answer is
+    // certain to have arrived.
+    verifyWindowSize();
+
     mState = STATE_CAPTURE;
     mResultReason = "capture incomplete";
     mStateTimer.reset();
@@ -1021,6 +1029,19 @@ void FSTestHarness::finish(bool ok, const std::string& reason)
         mResultOk = false;
         mResultReason = why.str();
     }
+    // Same shape, same reason: the frames exist and are not of what was asked
+    // for. A UI capture from a window of the wrong size is the window's UI in a
+    // buffer of another size -- letterboxed, or the same grab stitched across
+    // it -- and reporting that as a success invites a person to compare two
+    // viewers' interfaces when one of them was never drawn at the size in the
+    // file.
+    if (mResultOk && mCaptureUi && !mWindowSizeHonoured)
+    {
+        mResultOk = false;
+        mResultReason = mWindowSizeDetail.empty()
+            ? std::string("the window was never checked against the capture size")
+            : mWindowSizeDetail;
+    }
     writeStatus();
 
     if (ok)
@@ -1059,34 +1080,88 @@ void FSTestHarness::applyWindowSize()
         return;
     }
 
-    gViewerWindow->reshape(mCaptureWidth, mCaptureHeight);
-
-    // Report what we actually got, not what we asked for. The request can be
-    // refused outright (a tiling window manager sizes its own windows) and the
-    // old unconditional "resized to WxH" made a refused run look identical to
-    // a successful one in the log.
-    const S32 got_width  = gViewerWindow->getWindowWidthRaw();
-    const S32 got_height = gViewerWindow->getWindowHeightRaw();
-    if (got_width == mCaptureWidth && got_height == mCaptureHeight)
+    LLWindow* window = gViewerWindow->getWindow();
+    if (!window)
     {
-        LL_INFOS("FSTestHarness") << "window resized to "
-                                  << mCaptureWidth << 'x' << mCaptureHeight << LL_ENDL;
         return;
     }
 
-    // The UI is the one layer whose *size* still depends on the window: the
-    // snapshot path clamps the requested size to the window and scales the grab
-    // down to it, because it cannot draw the UI at any other size. The frame is
-    // still mCaptureWidth x mCaptureHeight, but its UI is this window's UI
-    // scaled -- which sl-client's, laid out at the capture size, will not
-    // match. A note rather than an error: the world in the same frame is
-    // unaffected, and only a UI comparison is spoiled.
-    LL_WARNS("FSTestHarness") << "window is " << got_width << 'x' << got_height
-                              << "; asked for " << mCaptureWidth << 'x' << mCaptureHeight
-                              << " and the window manager declined. The frames are still"
-                                 " captured at the requested size, but a UI capture from a"
-                                 " window of another size is the window's UI scaled to fit,"
-                                 " so do not compare UI detail from this run." << LL_ENDL;
+    // ASK THE WINDOW SYSTEM, not LLViewerWindow.
+    //
+    // LLViewerWindow::reshape() is the *inbound* notification -- what the
+    // window system calls when the window has already changed -- and it only
+    // updates mWindowRectRaw and re-lays the UI. It never touches mWindow, so
+    // calling it here did not resize anything: it told the viewer's internals a
+    // size the actual window did not have. The UI then laid itself out for a
+    // window that did not exist while the snapshot grabbed the one that did,
+    // which is how a run came back with 1024x738 of content sitting in a
+    // 1920x1080 frame, and the same grab stitched twice by the second frame.
+    //
+    // LLWindow::setSize is the request. It may still be refused -- a tiling
+    // Wayland compositor sizes its own windows, and an X11 client reaching it
+    // through Xwayland has no way to insist -- which is what verifyWindowSize()
+    // is for.
+    if (!window->setSize(LLCoordWindow(mCaptureWidth, mCaptureHeight)))
+    {
+        LL_WARNS("FSTestHarness") << "the window system refused a resize to "
+                                  << mCaptureWidth << 'x' << mCaptureHeight << LL_ENDL;
+    }
+    LL_INFOS("FSTestHarness") << "asked the window system for "
+                              << mCaptureWidth << 'x' << mCaptureHeight
+                              << "; checking what it gave us before the first frame" << LL_ENDL;
+}
+
+void FSTestHarness::verifyWindowSize()
+{
+    if (!mCaptureUi || mWindowSizeChecked)
+    {
+        // Only a UI capture depends on the window's size; a world-only frame is
+        // rendered into a scratch target of its own.
+        return;
+    }
+    mWindowSizeChecked = true;
+
+    LLWindow* window = gViewerWindow ? gViewerWindow->getWindow() : nullptr;
+    if (!window)
+    {
+        return;
+    }
+
+    // Deliberately asked *here* rather than straight after setSize(): a resize
+    // is a round trip through the window system, and the answer arrives on a
+    // later frame. The settle period is several seconds of them, so by the
+    // first captured frame the window is whatever it is going to be.
+    LLCoordWindow actual;
+    if (!window->getSize(&actual))
+    {
+        mWindowSizeDetail = "the window system would not say how big the window is";
+        return;
+    }
+
+    if (actual.mX == mCaptureWidth && actual.mY == mCaptureHeight)
+    {
+        mWindowSizeHonoured = true;
+        LL_INFOS("FSTestHarness") << "window is " << actual.mX << 'x' << actual.mY
+                                  << ", as asked" << LL_ENDL;
+        return;
+    }
+
+    // Not a degraded comparison -- not a comparison. The reference's snapshot
+    // path cannot draw the UI at any size but the window's, so a frame captured
+    // at a size the window does not have holds the window's UI in a buffer of
+    // another size: letterboxed, or the same grab stitched across it. Either
+    // way it cannot be compared with sl-client's, which lays its UI out at the
+    // capture size. Carried out through harness-status.json, because a
+    // directory of plausible-looking PNGs is indistinguishable from a good run
+    // by looking at it.
+    std::ostringstream why;
+    why << "the window is " << actual.mX << 'x' << actual.mY << " and the run asked for "
+        << mCaptureWidth << 'x' << mCaptureHeight
+        << "; the window manager sizes its own windows. A UI capture from a window of"
+           " another size is not comparable -- float this window (its app-id is the"
+           " SL_VIEWER_APP_ID one) or capture at the window's size.";
+    mWindowSizeDetail = why.str();
+    LL_WARNS("FSTestHarness") << mWindowSizeDetail << LL_ENDL;
 }
 
 void FSTestHarness::closeFloaters()
@@ -1354,6 +1429,18 @@ void FSTestHarness::writeStatus() const
             ? std::string("the run ended before the environment was applied")
             : mDayPositionDetail;
         status["day_position"] = pinned;
+    }
+    // Only for a UI capture, and then always -- including when the window
+    // declined, which is the case the key exists for.
+    if (mCaptureUi)
+    {
+        LLSD window = LLSD::emptyMap();
+        window["requested"] = llformat("%dx%d", mCaptureWidth, mCaptureHeight);
+        window["honoured"]  = mWindowSizeHonoured;
+        window["detail"]    = mWindowSizeDetail.empty()
+            ? std::string("the window was the size the run asked for")
+            : mWindowSizeDetail;
+        status["window_size"] = window;
     }
 
     const std::string path = gDirUtilp->add(mScreenshotDir, "harness-status.json");
