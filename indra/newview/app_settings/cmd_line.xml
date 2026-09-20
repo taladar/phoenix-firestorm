@@ -495,6 +495,17 @@
       <string>CmdLineLoginLocation</string>
     </map>
 
+    <!-- FSTestHarness: the theme half of the skin option. See fstestharness.h. -->
+    <key>theme</key>
+    <map>
+      <key>desc</key>
+      <string>Test harness: which theme of --skin to wear, by folder or by name (e.g. Dark). A skin's first theme has an empty folder, so naming it is the only way to ask for it.</string>
+      <key>count</key>
+      <integer>1</integer>
+      <key>map-to</key>
+      <string>FSTestSkinTheme</string>
+    </map>
+
     <key>url</key>
     <map>
       <key>desc</key>

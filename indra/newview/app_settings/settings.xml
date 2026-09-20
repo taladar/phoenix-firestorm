@@ -3534,6 +3534,17 @@
       <key>Value</key>
       <string />
     </map>
+    <key>FSTestSkinTheme</key>
+    <map>
+      <key>Comment</key>
+      <string>Test harness: which theme of the current skin to wear, by folder or by name. The skin itself is --skin.</string>
+      <key>Persist</key>
+      <integer>0</integer>
+      <key>Type</key>
+      <string>String</string>
+      <key>Value</key>
+      <string />
+    </map>
     <!-- </FS:Test> -->
     <key>CmdLineHelperURI</key>
     <map>
