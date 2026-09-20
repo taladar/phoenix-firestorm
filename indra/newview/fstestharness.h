@@ -171,6 +171,17 @@ private:
      * watchable run for nothing.
      */
     void applyWindowSize();
+    /**
+     * Read back the size the window system actually gave us, once it has had a
+     * chance to answer, and record whether a UI capture is comparable at all.
+     *
+     * Separate from applyWindowSize() because a resize is a round trip: asking
+     * and checking in one breath can only ever confirm what we just asked for,
+     * which is exactly the bug this pair replaces -- the old check compared the
+     * request against `LLViewerWindow`'s own rect, which the request had just
+     * set, so it could not disagree and the warning below it was unreachable.
+     */
+    void verifyWindowSize();
 
     /// Write one frame; returns false if the snapshot failed.
     bool captureFrame(S32 index);
@@ -213,6 +224,24 @@ private:
     bool        mDayPositionHonoured = false;
     /// Prose for the status file saying what the pin did or why it could not.
     std::string mDayPositionDetail;
+
+    /**
+     * Whether the window is the size a UI capture needs it to be.
+     *
+     * Only meaningful for a `SL_VIEWER_CAPTURE_UI` run: the reference's
+     * snapshot path cannot draw the UI at any size but the window's, so a frame
+     * captured at a size the window does not have holds the window's UI in a
+     * buffer of another size, and is not comparable with sl-client's — which
+     * lays its UI out at the capture size whatever the window is doing. Like
+     * `mDayPositionHonoured`, it is carried out through the status file and
+     * fails the run, because the frames it produces look perfectly fine in a
+     * directory listing.
+     */
+    bool        mWindowSizeHonoured = false;
+    /// Whether verifyWindowSize() has run yet, so it asks once per run.
+    bool        mWindowSizeChecked = false;
+    /// Prose for the status file saying what the window actually is.
+    std::string mWindowSizeDetail;
 
     /// A vertical field of view pinned for the run (SL_VIEWER_CAPTURE_FOV, in
     /// degrees on the way in, radians here), or none to keep the viewer's own.
