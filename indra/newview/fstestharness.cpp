@@ -143,6 +143,109 @@ namespace
         return envString(env_name);
     }
 
+    /**
+     * One skin as skins.xml describes it: the folder its files load from, the
+     * name the viewer shows for it, and the same pair for each of its themes.
+     */
+    struct SkinEntry
+    {
+        std::string mFolder;
+        std::string mName;
+        /// folder, name -- in skins.xml order, so the first is the default.
+        std::vector<std::pair<std::string, std::string>> mThemes;
+    };
+
+    /**
+     * Read skins.xml -- the same catalogue the preferences skin panel reads,
+     * from the same place. Returns false with @a error set when it cannot be
+     * read or holds no skins.
+     */
+    bool loadSkinCatalogue(std::vector<SkinEntry>& out, std::string& error)
+    {
+        const std::string path =
+            gDirUtilp->getSkinBaseDir() + gDirUtilp->getDirDelimiter() + "skins.xml";
+        llifstream file(path.c_str(), std::ios::binary);
+        if (!file.is_open())
+        {
+            error = "cannot read " + path;
+            return false;
+        }
+
+        LLSD skins;
+        if (LLSDSerialize::fromXMLDocument(skins, file) == LLSDParser::PARSE_FAILURE ||
+            !skins.isArray())
+        {
+            error = path + " is not an array of skins";
+            return false;
+        }
+
+        for (LLSD::array_const_iterator it = skins.beginArray(); it != skins.endArray(); ++it)
+        {
+            SkinEntry entry;
+            entry.mFolder = (*it)["folder"].asString();
+            entry.mName = (*it)["name"].asString();
+            const LLSD& themes = (*it)["themes"];
+            if (themes.isArray())
+            {
+                for (LLSD::array_const_iterator t = themes.beginArray(); t != themes.endArray(); ++t)
+                {
+                    entry.mThemes.emplace_back((*t)["folder"].asString(),
+                                               (*t)["name"].asString());
+                }
+            }
+            out.push_back(entry);
+        }
+
+        if (out.empty())
+        {
+            error = path + " lists no skins";
+            return false;
+        }
+        return true;
+    }
+
+    bool sameName(const std::string& a, const std::string& b)
+    {
+        return LLStringUtil::compareInsensitive(a, b) == 0;
+    }
+
+    /// Every skin's name and folder, for an error message that leaves the
+    /// operator able to fix the typo without opening skins.xml.
+    std::string skinChoices(const std::vector<SkinEntry>& skins)
+    {
+        std::ostringstream out;
+        for (const SkinEntry& skin : skins)
+        {
+            if (out.tellp() > 0)
+            {
+                out << ", ";
+            }
+            out << skin.mName << " (" << skin.mFolder << ')';
+        }
+        return out.str();
+    }
+
+    /// As skinChoices, for one skin's themes. A theme whose folder is empty --
+    /// every skin's first -- is shown by name alone, since that is the only
+    /// way to ask for it.
+    std::string themeChoices(const SkinEntry& skin)
+    {
+        std::ostringstream out;
+        for (const auto& theme : skin.mThemes)
+        {
+            if (out.tellp() > 0)
+            {
+                out << ", ";
+            }
+            out << theme.second;
+            if (!theme.first.empty())
+            {
+                out << " (" << theme.first << ')';
+            }
+        }
+        return out.str();
+    }
+
     /// Parse "x,y,z" as sl-client does, in region-local SL (Z-up) metres.
     bool parseVec3(const std::string& raw, LLVector3& out)
     {
@@ -394,6 +497,23 @@ void FSTestHarness::initFromCommandLine()
     envS32("SL_VIEWER_SCREENSHOT_FRAMES", mFrameCount);
     envF32("SL_VIEWER_LOGIN_TIMEOUT", mLoginTimeout);
 
+    // The skin. This viewer's own --skin has already put its argument in
+    // SkinCurrent by now (the command line reaches gSavedSettings at
+    // clp.notify(), just above the call to us), so applySkin() falls back to
+    // that and only the environment variable is read here.
+    //
+    // Naming a skin does *not* arm the harness: which skin the viewer wears is
+    // a presentation choice, not a run mode, and arming would turn an ordinary
+    // session into an unattended one -- closing its floaters and forcing the
+    // determinism settings on it. So this sits before the !mActive return
+    // rather than after it, and applySkin() decides what to do in each case.
+    mSkin = envString("SL_VIEWER_SKIN");
+    mSkinTheme = settingOrEnv("FSTestSkinTheme", "SL_VIEWER_THEME");
+    if (!applySkin())
+    {
+        return;
+    }
+
     if (!mActive)
     {
         return;
@@ -474,6 +594,156 @@ void FSTestHarness::applyWindowIdentity()
 
     LL_INFOS("FSTestHarness") << "window app-id: " << app_id
                               << " (override with SL_VIEWER_APP_ID)" << LL_ENDL;
+}
+
+bool FSTestHarness::applySkin()
+{
+    // This viewer's own --skin lands in SkinCurrent, where the user
+    // directory's saved choice also lives -- but not at the same level. The
+    // command line applies map-to with saved_value=false
+    // (llcommandlineparser.cpp), and an unsaved value is pushed *above* the
+    // saved one on the control's stack, where it cannot affect
+    // getSaveValue(). So the two differing is exactly "something overrode this
+    // for this run", which is the signal there is otherwise no way to read.
+    const LLPointer<LLControlVariable> skin_control = gSavedSettings.getControl("SkinCurrent");
+    const bool skin_overridden =
+        skin_control.notNull() &&
+        skin_control->getValue().asString() != skin_control->getSaveValue().asString();
+
+    // A skin was named if any of the three routes named one.
+    const bool skin_named = !mSkin.empty() || skin_overridden;
+    const bool asked = skin_named || !mSkinTheme.empty();
+    if (!asked && !mActive)
+    {
+        // Nobody named a skin and there is no run to keep coherent. Leave the
+        // viewer's own settings entirely alone -- this is every ordinary
+        // interactive session.
+        return true;
+    }
+
+    // An armed run with no skin named still comes through here, to reconcile
+    // the three pairs against whatever SkinCurrent holds -- which covers both
+    // --skin (folder set, readable names left saying something else) and a
+    // user directory whose pairs have drifted apart. A run that exists to
+    // compare skins must not be the thing that discovers the mismatch.
+    const std::string current_skin = gSavedSettings.getString("SkinCurrent");
+    const std::string current_theme = gSavedSettings.getString("SkinCurrentTheme");
+    const std::string wanted_skin = mSkin.empty() ? current_skin : mSkin;
+
+    std::vector<SkinEntry> skins;
+    std::string error;
+    if (!loadSkinCatalogue(skins, error))
+    {
+        if (asked)
+        {
+            LL_ERRS("FSTestHarness") << "cannot honour the requested skin: " << error << LL_ENDL;
+            return false;
+        }
+        LL_WARNS("FSTestHarness") << "skin catalogue: " << error
+                                  << "; leaving the skin settings as they are" << LL_ENDL;
+        return true;
+    }
+
+    const SkinEntry* skin = nullptr;
+    for (const SkinEntry& candidate : skins)
+    {
+        // Either spelling: the folder files load from, or the name the viewer
+        // shows. A caller who read the name off the preferences panel should
+        // not have to learn the folder it corresponds to.
+        if (sameName(candidate.mFolder, wanted_skin) || sameName(candidate.mName, wanted_skin))
+        {
+            skin = &candidate;
+            break;
+        }
+    }
+    if (!skin)
+    {
+        if (asked)
+        {
+            // Refuse to start. Falling through would dress the run in the
+            // default skin while the operator believes they asked for another
+            // one -- the silent wrong answer this option exists to prevent.
+            LL_ERRS("FSTestHarness") << "no such skin '" << wanted_skin
+                                     << "'; available: " << skinChoices(skins) << LL_ENDL;
+            return false;
+        }
+        LL_WARNS("FSTestHarness") << "the current skin '" << wanted_skin
+                                  << "' is not listed in skins.xml; leaving the skin"
+                                     " settings as they are" << LL_ENDL;
+        return true;
+    }
+
+    const std::pair<std::string, std::string>* theme = nullptr;
+    if (!mSkinTheme.empty())
+    {
+        for (const auto& candidate : skin->mThemes)
+        {
+            if (sameName(candidate.first, mSkinTheme) || sameName(candidate.second, mSkinTheme))
+            {
+                theme = &candidate;
+                break;
+            }
+        }
+        if (!theme)
+        {
+            LL_ERRS("FSTestHarness") << "skin '" << skin->mName << "' has no theme '"
+                                     << mSkinTheme << "'; available: " << themeChoices(*skin)
+                                     << LL_ENDL;
+            return false;
+        }
+    }
+    else if (skin_named)
+    {
+        // A skin named without a theme takes its own first one, which is the
+        // default skins.xml lists it under. Keeping the *outgoing* skin's
+        // theme folder instead would point the theme search at a
+        // skins/<new>/themes/<old> that does not exist, and would leave the
+        // readable name naming a theme from a skin no longer worn.
+        if (!skin->mThemes.empty())
+        {
+            theme = &skin->mThemes.front();
+        }
+    }
+    else
+    {
+        // Reconciling, not changing: keep the theme already chosen, and only
+        // work out what it is called. A folder that is not one of this skin's
+        // themes has already drifted, so fall back to the skin's first.
+        for (const auto& candidate : skin->mThemes)
+        {
+            if (candidate.first == current_theme)
+            {
+                theme = &candidate;
+                break;
+            }
+        }
+        if (!theme && !skin->mThemes.empty())
+        {
+            theme = &skin->mThemes.front();
+        }
+    }
+
+    const std::string theme_folder = theme ? theme->first : std::string();
+    const std::string theme_name = theme ? theme->second : std::string();
+
+    LL_INFOS("FSTestHarness") << "skin: " << skin->mName << " / "
+                              << (theme_name.empty() ? "(no theme)" : theme_name)
+                              << " -- folders " << skin->mFolder << " / "
+                              << (theme_folder.empty() ? "(base)" : theme_folder) << LL_ENDL;
+
+    // All four together, and non-persisting: every one of them is Persist=1,
+    // so a plain set would repaint the operator's own viewer on exit. The
+    // folders decide which files load; the readable names decide which code
+    // paths run, because llstartup copies them into the FSInternalSkin* pair
+    // that fscommon and llviewermenu test. LLAppViewer::initConfiguration
+    // reads SkinCurrent a little further down the same function that called
+    // us, so this is in time for the skin the run actually loads.
+    forceSetting("SkinCurrent", skin->mFolder);
+    forceSetting("SkinCurrentTheme", theme_folder);
+    forceSetting("FSSkinCurrentReadableName", skin->mName);
+    forceSetting("FSSkinCurrentThemeReadableName", theme_name);
+
+    return true;
 }
 
 void FSTestHarness::applyDeterminismSettings()

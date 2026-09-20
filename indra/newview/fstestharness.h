@@ -51,6 +51,11 @@
  * The option and environment-variable names deliberately mirror sl-client's,
  * so one env block can drive both viewers.
  *
+ * One option is deliberately outside that arming rule: --skin / --theme (and
+ * SL_VIEWER_SKIN / SL_VIEWER_THEME) dress the viewer without arming anything,
+ * because which skin the viewer wears is a presentation choice rather than a
+ * run mode -- see applySkin().
+ *
  * Note this is emphatically *not* --noninteractive: that mode skips rendering
  * entirely (llviewerdisplay.cpp) and so can never produce a screenshot.
  */
@@ -116,6 +121,27 @@ private:
     void applyWindowIdentity();
     /// Force the settings two viewers must agree on to be comparable at all.
     void applyDeterminismSettings();
+    /**
+     * Put the run in a named skin and theme, and make the viewer's *three*
+     * pairs of skin settings agree with each other.
+     *
+     * Firestorm keeps the choice in three places and they do different jobs:
+     * SkinCurrent / SkinCurrentTheme are the folders LLDir::setSkinFolder
+     * loads files from; FSSkinCurrentReadableName / …ThemeReadableName are
+     * what the preferences panel writes; and FSInternalSkinCurrent / …Theme,
+     * copied from the readable names at startup (llstartup.cpp), are read as a
+     * *behaviour* switch rather than as a label -- fscommon.cpp's
+     * `is_legacy_skin` is literally FSInternalSkinCurrent == "Vintage", and
+     * llviewermenu.cpp and fsfloaterim.cpp test it too.
+     *
+     * So setting only the folder gives a run that draws one skin's art while
+     * taking another skin's code paths. That divergence is invisible in the
+     * frames and would read as the *other* viewer's bug, which is the whole
+     * reason this does not just set SkinCurrent and stop.
+     *
+     * Returns false when a named skin or theme could not be resolved.
+     */
+    bool applySkin();
     /**
      * Set a setting for this run only. Most of the controls the harness
      * overrides are Persist=1, so a plain setBOOL() would write them into the
@@ -229,6 +255,25 @@ private:
     /// SL_VIEWER_CAPTURE_AUDIO, sl-client's --capture-audio: whether the run
     /// may make sound. Off by default (MuteAudio forced on for the run).
     bool        mCaptureAudio = false;
+
+    /**
+     * The skin and theme a run wears -- SL_VIEWER_SKIN / SL_VIEWER_THEME,
+     * mirroring sl-client's --skin / --theme, plus this viewer's own --skin
+     * and the --theme this harness adds beside it.
+     *
+     * Either may be written as the folder skins.xml gives ("vintage") or as
+     * the name it shows ("Vintage"), matched case-insensitively. Accepting the
+     * name matters most for a theme: a skin's first theme has an *empty*
+     * folder, so Vintage's only theme is nameable as "Classic" and spellable
+     * as nothing at all.
+     *
+     * Empty means "not asked for", which is not the same as the empty theme
+     * folder -- see applySkin(), where a skin named without a theme takes its
+     * first, rather than keeping the previous skin's theme folder and looking
+     * for a themes/ directory that does not exist.
+     */
+    std::string mSkin;
+    std::string mSkinTheme;
 
     F32         mSettleTimeout = 25.f;  ///< SL_VIEWER_SCREENSHOT_DELAY
     F32         mFrameInterval = 0.5f;  ///< SL_VIEWER_SCREENSHOT_INTERVAL
