@@ -72,7 +72,24 @@
 // corresponds to it. (settings.use_mock_keychain, set below under LL_DARWIN,
 // is the macOS counterpart and does nothing here.)
 //
-// We cannot put the switch on the command line either. dullahan hands
+// Keep CEF off the Wayland ozone backend.
+//
+// CEF 152 (chromium-152.0.7977.83, in Firestorm builds from 2026-09-12) picks
+// the Wayland ozone platform by default and ships no X11 fallback: clear
+// WAYLAND_DISPLAY and it does not degrade to X11, it dies outright ("Failed to
+// connect to Wayland display ... ContentMainRun failed with exit code 1"). On
+// that backend every browser surface renders as its placeholder colour and
+// nothing else -- white on HUDs, skin background on search and login -- while
+// the log still reports the page loading and finishing normally. The CEF 139
+// builds up to 2026-06-01 did not do this.
+//
+// --ozone-platform=headless restores it, and is arguably what this embedder
+// wanted all along: none of these browsers is ever on screen as a window, they
+// are painted offscreen into a viewer texture. It does mean CEF has no real
+// windows at all, so showDevTools() and native file dialogs have nowhere to
+// go; --ozone-platform=x11 is the fallback if either turns out to matter.
+//
+// Neither switch can go on CEF's command line the ordinary way. dullahan hands
 // CefInitialize a zeroed CefMainArgs, and base::CommandLine::Init(0, nullptr)
 // on POSIX has no /proc/self/cmdline fallback, so the browser process starts
 // with an empty command line whatever SLPlugin's own argv says. Both places
@@ -104,9 +121,10 @@ int cef_initialize(const ll_cef_main_args* args, const void* settings,
 {
     static char arg0[] = "SLPlugin";
     static char arg1[] = "--password-store=basic";
-    static char* injected_argv[] = { arg0, arg1, nullptr };
+    static char arg2[] = "--ozone-platform=headless";
+    static char* injected_argv[] = { arg0, arg1, arg2, nullptr };
 
-    ll_cef_main_args patched = { 2, injected_argv };
+    ll_cef_main_args patched = { 3, injected_argv };
     if (args && args->argc > 0)
     {
         // Someone gave CEF a real command line after all; leave it alone.
