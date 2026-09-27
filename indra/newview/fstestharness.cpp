@@ -507,6 +507,33 @@ bool FSTestHarness::initFromCommandLine()
                                   << " degrees" << LL_ENDL;
     }
 
+    // The interface scale, pinned so a chrome pair states the scale both
+    // interfaces are drawn at rather than resting on two defaults agreeing.
+    // Refused outside sl-client's UiScale range (0.75 to 2), which lies inside
+    // this viewer's own: a pin one side would clamp is a pair at two scales.
+    const std::string ui_scale = envString("SL_VIEWER_CAPTURE_UI_SCALE");
+    if (!ui_scale.empty())
+    {
+        bool parsed = false;
+        try
+        {
+            size_t end = 0;
+            mUiScale = std::stof(ui_scale, &end);
+            parsed = end == ui_scale.size() && mUiScale >= 0.75f && mUiScale <= 2.f;
+        }
+        catch (const std::exception&)
+        {
+            parsed = false;
+        }
+        if (!parsed)
+        {
+            return refuse("SL_VIEWER_CAPTURE_UI_SCALE: expected a number from 0.75 to 2, got '"
+                          + ui_scale + "'");
+        }
+        mHaveUiScale = true;
+        LL_INFOS("FSTestHarness") << "UI scale pinned to " << mUiScale << LL_ENDL;
+    }
+
     envF32("SL_VIEWER_SCREENSHOT_DELAY", mSettleTimeout);
     envF32("SL_VIEWER_SCREENSHOT_INTERVAL", mFrameInterval);
     envS32("SL_VIEWER_SCREENSHOT_FRAMES", mFrameCount);
@@ -541,6 +568,16 @@ bool FSTestHarness::initFromCommandLine()
 
     applyWindowIdentity();
     applyDeterminismSettings();
+    if (mHaveUiScale)
+    {
+        // Before the window exists, which is when it reads UIScaleFactor; both
+        // are Persist=1, so forced for this run only. The first-run reset is
+        // switched off because a fresh user directory is a first run, and on a
+        // display whose system UI size is not 1 it would put UIScaleFactor
+        // back to 1 over the pin.
+        forceSetting("ResetUIScaleOnFirstRun", LLSD(false));
+        forceSetting("UIScaleFactor", mUiScale);
+    }
 
     mState = STATE_WAIT_LOGIN;
     mResultReason = "login not completed";

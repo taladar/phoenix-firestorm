@@ -267,6 +267,13 @@ private:
     /// defaults agreeing is one with an unstated premise.
     bool        mHaveFieldOfView = false;
     F32         mFieldOfView = 0.f;
+    /**
+     * The interface scale pinned for the run (SL_VIEWER_CAPTURE_UI_SCALE),
+     * applied as UIScaleFactor. sl-client reads the same variable as its
+     * UiScale, so one environment block draws both interfaces at one scale.
+     */
+    bool        mHaveUiScale = false;
+    F32         mUiScale = 1.f;
 
     /// The pixel grid every captured frame is rendered at, independent of
     /// whatever size the window ends up being (see captureFrame). Defaults to
