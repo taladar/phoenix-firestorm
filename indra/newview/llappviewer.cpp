@@ -3277,7 +3277,15 @@ bool LLAppViewer::initConfiguration()
     // UserLoginInfoCmdLine from the credentials/grid files. It runs before the
     // --set block below so an explicit --set still wins over the determinism
     // defaults the harness applies. No-op in an ordinary session.
-    FSTestHarness::instance().initFromCommandLine();
+    //
+    // A refused configuration stops start-up here, the way a bad command line
+    // does -- but without handleCommandLineError()'s dialog, since nobody is
+    // there to close it. The harness has already logged the reason and
+    // written it to harness-status.json.
+    if (!FSTestHarness::instance().initFromCommandLine())
+    {
+        return false;
+    }
     // </FS:Test>
 
     // Register the core crash option as soon as we can

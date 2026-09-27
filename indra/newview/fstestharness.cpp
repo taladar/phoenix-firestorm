@@ -286,8 +286,17 @@ FSTestHarness::FSTestHarness()
 // Setup
 // ---------------------------------------------------------------------------
 
-void FSTestHarness::initFromCommandLine()
+bool FSTestHarness::initFromCommandLine()
 {
+    // The screenshot directory first, before anything that can be refused:
+    // it is where a refusal is reported, and a driver reading an empty
+    // directory can only say the run never happened.
+    mScreenshotDir = settingOrEnv("FSTestScreenshotDir", "SL_VIEWER_SCREENSHOT_DIR");
+    if (!mScreenshotDir.empty())
+    {
+        mActive = true;
+    }
+
     // --- credentials -------------------------------------------------------
     const std::string cred_path =
         settingOrEnv("FSTestCredentialsFile", "SL_VIEWER_CREDENTIALS");
@@ -302,8 +311,7 @@ void FSTestHarness::initFromCommandLine()
         {
             // Refuse to start rather than fall through to the login panel and
             // sit there forever in an unattended run.
-            LL_ERRS("FSTestHarness") << "--credentials: " << error << LL_ENDL;
-            return;
+            return refuse("--credentials: " + error);
         }
 
         if (!avatar.mMfaCommand.empty())
@@ -350,8 +358,7 @@ void FSTestHarness::initFromCommandLine()
         std::string error;
         if (!FSTestConfig::loadGrid(grid_path, grid, error))
         {
-            LL_ERRS("FSTestHarness") << "--gridfile: " << error << LL_ENDL;
-            return;
+            return refuse("--gridfile: " + error);
         }
         // A grid file is the more specific statement, so it wins over the
         // avatar's own login_uri.
@@ -372,11 +379,7 @@ void FSTestHarness::initFromCommandLine()
     }
 
     // --- capture -----------------------------------------------------------
-    mScreenshotDir = settingOrEnv("FSTestScreenshotDir", "SL_VIEWER_SCREENSHOT_DIR");
-    if (!mScreenshotDir.empty())
-    {
-        mActive = true;
-    }
+    // (The screenshot directory was read at the top.)
     mSceneDumpPath = settingOrEnv("FSTestSceneDump", "SL_VIEWER_SCENE_DUMP");
     if (!mSceneDumpPath.empty())
     {
@@ -393,9 +396,7 @@ void FSTestHarness::initFromCommandLine()
         }
         else
         {
-            LL_ERRS("FSTestHarness") << "--camera-position: expected 'x,y,z', got '"
-                                     << cam_pos << '\'' << LL_ENDL;
-            return;
+            return refuse("--camera-position: expected 'x,y,z', got '" + cam_pos + "'");
         }
     }
     const std::string cam_look = settingOrEnv("FSTestCameraLookAt", "SL_VIEWER_CAMERA_LOOK_AT");
@@ -408,9 +409,7 @@ void FSTestHarness::initFromCommandLine()
         }
         else
         {
-            LL_ERRS("FSTestHarness") << "--camera-look-at: expected 'x,y,z', got '"
-                                     << cam_look << '\'' << LL_ENDL;
-            return;
+            return refuse("--camera-look-at: expected 'x,y,z', got '" + cam_look + "'");
         }
     }
 
@@ -429,25 +428,38 @@ void FSTestHarness::initFromCommandLine()
     const std::string capture_size = envString("SL_VIEWER_CAPTURE_SIZE");
     if (!capture_size.empty())
     {
+        // Strict, as sl-client's parser is: both numbers, all of each, and
+        // nothing else. A value with no 'x' at all used to keep the default
+        // size and carry on, so a typo ran at a size nobody asked for.
+        bool parsed = false;
         const size_t x = capture_size.find_first_of("xX");
         if (x != std::string::npos)
         {
+            const std::string width = capture_size.substr(0, x);
+            const std::string height = capture_size.substr(x + 1);
             try
             {
-                mCaptureWidth  = (S32)std::stol(capture_size.substr(0, x));
-                mCaptureHeight = (S32)std::stol(capture_size.substr(x + 1));
-                mActive = true;
+                size_t width_end = 0;
+                size_t height_end = 0;
+                const long w = std::stol(width, &width_end);
+                const long h = std::stol(height, &height_end);
+                parsed = width_end == width.size() && height_end == height.size()
+                    && w > 0 && h > 0;
+                if (parsed)
+                {
+                    mCaptureWidth  = (S32)w;
+                    mCaptureHeight = (S32)h;
+                    mActive = true;
+                }
             }
             catch (const std::exception&)
             {
-                mCaptureWidth = mCaptureHeight = 0;
+                parsed = false;
             }
         }
-        if (mCaptureWidth <= 0 || mCaptureHeight <= 0)
+        if (!parsed)
         {
-            LL_ERRS("FSTestHarness") << "SL_VIEWER_CAPTURE_SIZE: expected 'WxH', got '"
-                                     << capture_size << '\'' << LL_ENDL;
-            return;
+            return refuse("SL_VIEWER_CAPTURE_SIZE: expected 'WxH', got '" + capture_size + "'");
         }
     }
     if (mCaptureWidth % 4 != 0)
@@ -514,12 +526,12 @@ void FSTestHarness::initFromCommandLine()
     mSkinTheme = settingOrEnv("FSTestSkinTheme", "SL_VIEWER_THEME");
     if (!applySkin())
     {
-        return;
+        return false;
     }
 
     if (!mActive)
     {
-        return;
+        return true;
     }
 
     if (!mScreenshotDir.empty())
@@ -540,6 +552,41 @@ void FSTestHarness::initFromCommandLine()
         << " interval=" << mFrameInterval
         << "s settle-timeout=" << mSettleTimeout
         << "s login-timeout=" << mLoginTimeout << 's' << LL_ENDL;
+    return true;
+}
+
+bool FSTestHarness::refuse(const std::string& reason)
+{
+    LL_WARNS("FSTestHarness") << "refusing the run: " << reason << LL_ENDL;
+
+    mState = STATE_DONE;
+    mResultOk = false;
+    mResultReason = reason;
+
+    // A refusal can come before the options the status reports on were read.
+    // Read them here, so that a UI run or a pinned sun gets its block saying
+    // the run never reached that point. Without the block, the driver takes
+    // the silence for a viewer too old to write it.
+    envBool("SL_VIEWER_CAPTURE_UI", mCaptureUi);
+    F32 day_position = 0.f;
+    if (!mHaveDayPosition && envF32("SL_VIEWER_SKY_DAY_POSITION", day_position))
+    {
+        mDayPosition = llclamp(day_position, 0.f, 1.f);
+        mHaveDayPosition = true;
+    }
+    if (mCaptureUi && mWindowSizeDetail.empty())
+    {
+        // Otherwise the status would carry writeStatus()'s default, "the
+        // window was the size the run asked for", about a window that never
+        // existed.
+        mWindowSizeDetail = "the run was refused before the window was made";
+    }
+    if (!mScreenshotDir.empty())
+    {
+        LLFile::mkdir(mScreenshotDir);
+        writeStatus();
+    }
+    return false;
 }
 
 void FSTestHarness::forceSetting(const char* name, const LLSD& value, bool log_value)
@@ -639,8 +686,7 @@ bool FSTestHarness::applySkin()
     {
         if (asked)
         {
-            LL_ERRS("FSTestHarness") << "cannot honour the requested skin: " << error << LL_ENDL;
-            return false;
+            return refuse("cannot honour the requested skin: " + error);
         }
         LL_WARNS("FSTestHarness") << "skin catalogue: " << error
                                   << "; leaving the skin settings as they are" << LL_ENDL;
@@ -666,9 +712,7 @@ bool FSTestHarness::applySkin()
             // Refuse to start. Falling through would dress the run in the
             // default skin while the operator believes they asked for another
             // one -- the silent wrong answer this option exists to prevent.
-            LL_ERRS("FSTestHarness") << "no such skin '" << wanted_skin
-                                     << "'; available: " << skinChoices(skins) << LL_ENDL;
-            return false;
+            return refuse("no such skin '" + wanted_skin + "'; available: " + skinChoices(skins));
         }
         LL_WARNS("FSTestHarness") << "the current skin '" << wanted_skin
                                   << "' is not listed in skins.xml; leaving the skin"
@@ -689,10 +733,8 @@ bool FSTestHarness::applySkin()
         }
         if (!theme)
         {
-            LL_ERRS("FSTestHarness") << "skin '" << skin->mName << "' has no theme '"
-                                     << mSkinTheme << "'; available: " << themeChoices(*skin)
-                                     << LL_ENDL;
-            return false;
+            return refuse("skin '" + skin->mName + "' has no theme '" + mSkinTheme
+                          + "'; available: " + themeChoices(*skin));
         }
     }
     else if (skin_named)

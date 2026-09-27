@@ -68,8 +68,13 @@ public:
      * Read the config files and options and, if any are present, arm the
      * harness. Call from LLAppViewer::initConfiguration() *after* clp.notify(),
      * because that is when command-line values reach gSavedSettings.
+     *
+     * Returns false when the harness refuses its configuration -- a file it
+     * cannot read, a value it cannot parse, a skin that does not exist. The
+     * caller must then stop starting the viewer: initConfiguration() returns
+     * false, and the process exits at once with no dialog. See refuse().
      */
-    void initFromCommandLine();
+    bool initFromCommandLine();
 
     /** True once initFromCommandLine() found something to do. */
     bool isActive() const { return mActive; }
@@ -139,9 +144,21 @@ private:
      * frames and would read as the *other* viewer's bug, which is the whole
      * reason this does not just set SkinCurrent and stop.
      *
-     * Returns false when a named skin or theme could not be resolved.
+     * Returns false, having refused the run, when a named skin or theme could
+     * not be resolved.
      */
     bool applySkin();
+    /**
+     * Refuse the run's configuration: log @a reason, record it as the failed
+     * result in harness-status.json when a screenshot directory is known, and
+     * return false for the caller to pass up to initConfiguration().
+     *
+     * Not LL_ERRS. That is the viewer's crash path, which opens a modal
+     * "Firestorm has crashed" box and waits for a person to close it -- so an
+     * unattended run sat there until its driver's deadline (271 s on a
+     * three-frame run) and left no status behind to say why.
+     */
+    bool refuse(const std::string& reason);
     /**
      * Set a setting for this run only. Most of the controls the harness
      * overrides are Persist=1, so a plain setBOOL() would write them into the
