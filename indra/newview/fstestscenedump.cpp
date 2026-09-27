@@ -37,6 +37,7 @@
 #include "lldate.h"
 #include "llsdjson.h"
 #include "llsdutil_math.h"
+#include "llui.h"
 #include "llversioninfo.h"
 
 #include "llagent.h"
@@ -411,6 +412,11 @@ namespace
         render["max_texture_res"]   = (S32)gSavedSettings.getU32("RenderMaxTextureResolution");
         render["mesh_lod_boost"]    = gSavedSettings.getF32("RenderVolumeLODFactor");
         render["visible_drawables"] = (S32)gPipeline.mNumVisibleFaces;
+        // The scale the interface was drawn at: UIScaleFactor times the
+        // system's UI size, as the viewer window applied it (LLUI's scale
+        // factor, which is what every widget is laid out by). sl-client reports
+        // its layout scale under the same name.
+        render["ui_scale"] = LLUI::getScaleFactor().mV[VX];
         return render;
     }
 }
