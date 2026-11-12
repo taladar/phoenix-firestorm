@@ -12,7 +12,16 @@ if (LIBVLCPLUGIN)
     if(LINUX)
         find_package(PkgConfig REQUIRED)
 
-        pkg_check_modules(libvlc REQUIRED IMPORTED_TARGET libvlc)
+        # media_plugin_libvlc.cpp is written against the VLC 3 API; VLC 4
+        # reworked events and stopping, so the plugin does not compile against
+        # it. Skip the plugin rather than fail the build -- Linux media still
+        # plays through the gstreamer plugin.
+        pkg_check_modules(libvlc IMPORTED_TARGET "libvlc<4")
+        if (NOT libvlc_FOUND)
+            message(WARNING "No VLC 3 libvlc found; not building media_plugin_libvlc")
+            set(LIBVLCPLUGIN OFF)
+            return()
+        endif ()
         target_link_libraries( ll::libvlc INTERFACE PkgConfig::libvlc)
         return()
     endif()

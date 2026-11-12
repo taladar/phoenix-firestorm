@@ -2797,11 +2797,14 @@ if (LINUX)
     SLPlugin
     media_plugin_cef
     media_plugin_gstreamer10
-    media_plugin_libvlc
     media_plugin_example
     llwebrtc
     linux-crash-logger
     )
+  # Not built when only a VLC 4 libvlc is installed; see LibVLCPlugin.cmake.
+  if (TARGET media_plugin_libvlc)
+    list(APPEND COPY_INPUT_DEPENDENCIES media_plugin_libvlc)
+  endif ()
 
   add_custom_command(
       OUTPUT ${product}.tar.xz

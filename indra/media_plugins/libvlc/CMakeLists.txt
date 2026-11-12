@@ -11,6 +11,9 @@ include(PluginAPI)
 include(MediaPluginBase)   # <FS:Zi> Linux volume catcher
 
 include(LibVLCPlugin)
+if (NOT LIBVLCPLUGIN)
+  return()
+endif ()
 
 ### media_plugin_libvlc
 
